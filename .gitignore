@@ -3,3 +3,6 @@ replay/
 
 # VSCode configs
 .vscode/
+
+# build files
+src/build/
