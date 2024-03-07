@@ -10,5 +10,5 @@ clean_replay:
 	rm -rf replay/*
 
 clean: clean_code clean_replay
-	echo "Cleanup code and replay files."
+	@echo "Cleanup code and replay files."
 
