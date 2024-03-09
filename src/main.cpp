@@ -86,20 +86,31 @@ struct Robot {
     Robot(int startX, int startY) : x(startX), y(startY) {}
 } robot[ROBOT_NUM + 10];
 
+//--------change 增加参数 value 和 队列goods_value
+//--------todo: 机器人在泊位pull时候：1.增加泊位价值  2.货物价值加入队列
 struct Berth {
     // * shape: 4x4
     int x, y;
     int transport_time;
     int loading_speed;
+    
+    int value = 0; // 泊位价值
+    queue<int> goods_value; // 泊位上的货物价值（取货按照时间排序）
+
     Berth() {}
     Berth(int x, int y, int transport_time, int loading_speed) : x(x), y(y), transport_time(transport_time), loading_speed(loading_speed) {}
 } berth[BERTH_NUM + 10];
 
+//--------change 增加参数  value
+// pos:-1 status:0 表示驶出泊位
+// pos:-1 status:1 表示在虚拟点
 struct Ship {
     // * shape: 2*4
-    int num;
+    int num; // 已经装有的容量
     int pos;     // 泊位 ID，虚拟泊位为 -1
     int status;  // 状态：0 表示移动（运输）中，1 表示正常运行状态（即装货状态或运输完成状态），2 表示泊位外等待状态
+
+    int value = 0; // 当前货物价值
 } ship[10];
 
 int money, ship_capacity, id;
@@ -135,14 +146,88 @@ int robot_pull(int id) {
 }
 
 // * 船指令
+//--------change begin：补全
 int ship_move(int id, int berth_id) {
-    NOT_IMPL;
+    // 船id 去往 berth_id
+    printf("ship %d %d\n", id, berth_id);
     return 0;
 }
+// change end
+
+//--------change begin：补全
 int ship_go(int id) {
-    NOT_IMPL;
+    printf("go %d\n", id);
     return 0;
 }
+// change end
+
+//--------change begin：函数新增
+// 查询港口是否有船
+// 返回1表示有船，0表示无船
+int query_berth(int id) {
+    for(int i=0; i<BERTH_NUM; i++){
+        if(ship[i].pos == id){
+            return 1;
+        }
+    }
+    return 0;
+}
+//change end
+
+//--------change begin：函数新增
+int check_ship() {
+    for(int i=0; i<SHIP_NUM; i++){
+        if(ship[i].pos == -1 && ship[i].status == 0){
+            // pos:-1 status:0 表示船在运输中
+            // do nothing
+        }
+        else if(ship[i].pos == -1 && ship[i].status == 1){
+            // pos:-1 status:1 表示船在虚拟点
+            //        发送 ship 指令 
+            // v1.0: 选择价值高且没有船的泊位 
+            int ind=0, max_value=0;
+            for(int ind_berth=0; ind_berth<BERTH_NUM; ind_berth++){
+                // 价值高 且无船
+                if(berth[ind_berth].value > max_value && query_berth(ind_berth) == 0){
+                    ind = ind_berth;
+                    max_value = berth[ind_berth].value;
+                }
+            }
+            // 发送 ship 指令 前往泊位
+            // 重设 船的价值和剩余容量
+            ship[i].num = ship_capacity;
+            ship[i].value = 0;
+            ship_move(i, ind);
+        }
+        else if(ship[i].pos != -1){
+            // pos:0-9 status:1 表示船在泊位 装货,此时可发出ship_go指令
+            // 船先离港后装卸货物
+            
+            // v1.0: 装满，或者岸边没有货物 运送至虚拟点
+            if(ship_capacity == ship[i].num  || berth[ship[i].pos].goods_value.empty()){
+                ship_go(i);
+            }
+            // 正常情况下装货
+            if(ship_capacity - ship[i].num > 0 ){
+                // 装货
+                // 装载loading_speed次
+                for(int j=0; j<berth[ship[i].pos].loading_speed; j++){
+                    // 无法继续装
+                    if(ship_capacity == ship[i].num || berth[ship[i].pos].goods_value.empty()) break;
+                    // 装货（队列中的货物价值）
+                    int val = berth[ship[i].pos].goods_value.front();
+                    berth[ship[i].pos].goods_value.pop();
+                    berth[ship[i].pos].value -= val; // 泊位价值改变
+                    // 容量, 价值改变
+                    ship[i].num++;
+                    ship[i].value += val;
+                }
+            }
+        }
+    }
+    return 0;
+}
+// change end
 
 // ! Debug
 void show_ch() {
