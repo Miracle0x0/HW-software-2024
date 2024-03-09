@@ -10,6 +10,16 @@ clean_replay:
 
 clean: clean_code clean_replay
 	@echo "Cleanup code and replay files."
+	@echo "Cleanup debug logs."
+	rm -f debug.log
+	@echo "Cleanup partition txt."
+	rm -f partition.txt
+	@echo "Cleanup partition image."
+	rm -rf helper/*.png
 
 test:
-	./run_self.sh
+	@if [ -f src/build/main ]; then \
+		./run_self.sh; \
+	else \
+		echo "Error: src/build/main does not exist."; \
+	fi

@@ -1,8 +1,12 @@
 # replay file folder
 replay/
 
-# VSCode configs
+# editor configs
 .vscode/
+.idea/
 
 # build files
 src/build/
+
+# backup folder
+bak/
