@@ -2,7 +2,7 @@ import os
 from PIL import Image
 
 work_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(work_dir)
+base_dir = os.path.dirname(work_dir)
 
 # Map each character to an RGB color
 color_map = {
@@ -22,7 +22,7 @@ color_map = {
 # Your provided text
 text = ""
 # Read text from file
-partition_file = os.path.join(root_dir, 'partition.txt')
+partition_file = os.path.join(base_dir, 'partition.txt')
 try:
     with open(partition_file, 'r') as file:
         text = file.read()
@@ -46,4 +46,7 @@ for y in range(200):
         pixels[x, y] = color_map.get(char, (0, 0, 0))  # 如果映射中没有字符，则为黑色
 
 # 保存图像
-img.save(os.path.join(work_dir, 'output_image_200x200.png'))
+image_dir = os.path.join(base_dir, "image")
+if os.path.exists(image_dir) is False:
+    os.makedirs(image_dir)
+img.save(os.path.join(image_dir, 'partition_200x200.png'))
