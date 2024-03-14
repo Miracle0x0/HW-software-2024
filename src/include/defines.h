@@ -82,11 +82,14 @@ struct Good {
 // * 变量定义
 
 int ship_capacity;
+int all_area_size=0;
 char ch[N][N];
 int gds[N][N];
 int dis[N][N];                    // BFS 得到的距离矩阵，代表当前位置到达各个泊位的距离
 int global_dis[BERTH_NUM][N][N];  // 距离矩阵，保存每个点到达各个泊位的距离
 int min_dis[N][N];                // 最优距离矩阵，保存每个点到达各个泊位的最短距离
+int area_size[BERTH_NUM];              //每个泊位的分区面积
+int neighbor[BERTH_NUM][BERTH_NUM];//泊位是否近邻
 
 char okk[100];
 

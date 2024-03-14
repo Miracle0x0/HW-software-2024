@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-// #define LOCAL_DEBUG
+#define LOCAL_DEBUG
 
 #include "include/debug.h"
 #include "include/defines.h"
@@ -64,6 +64,69 @@ void global_graph_partition() {
             }
         }
     }  // end of berth loop
+    //计算分区的面积和邻接关系
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if(gds[i][j] != -1) area_size[gds[i][j]]++;
+            for (int k = 1; k < 3; k++) {
+                int nxt_x = i + magic_directions[k], nxt_y = j + magic_directions[k + 1];
+                if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
+                if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER ||ch[i][j] == SEA || ch[i][j] == BORDER) continue;
+                if (gds[i][j] != gds[nxt_x][nxt_y]){
+                    neighbor[gds[i][j]][gds[nxt_x][nxt_y]]=1;
+                    neighbor[gds[nxt_x][nxt_y]][gds[i][j]]=1;
+                } 
+            }
+        }
+    }
+
+    for(int b = 0; b < BERTH_NUM; b++){
+        all_area_size+=area_size[b];
+        Debug("area_size of %d is %d\n", b, area_size[b]);
+    }
+    Debug("all_area_size is %d \n", all_area_size);
+    int flag = 1;
+    while(flag == 1 ){
+        //分区的合并，把面积小于平均值的地区合并至面积最小的邻接分区
+        flag=0;
+        for(int b = 0; b < BERTH_NUM; b++){
+            if(area_size[b] < all_area_size/10){
+                int min_size = n * n;
+                int min_beath = b;
+                for (int bn = 0; bn < BERTH_NUM; bn++){
+                    if(bn != b && neighbor[b][bn] == 1){
+                        if(area_size[bn] < min_size){
+                            min_size = area_size[bn];
+                            min_beath = bn;
+                        }
+                    }
+                }
+                if(min_beath != b){
+                    flag=1;
+                    int min_beath_new=berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
+                    int b_new=berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
+                    area_size[min_beath_new] += area_size[b_new];
+                    area_size[b_new]=0;
+                    for (int i = 0; i < n; i++) {
+                        for (int j = 0; j < n; j++) {
+                            if (gds[i][j] == b_new) {
+                                gds[i][j] = min_beath_new;
+                            }
+                        }
+                    }
+                    for (int b_neighbor = 0; b_neighbor <= BERTH_NUM; b_neighbor++) {
+                        if (neighbor[b_new][b_neighbor] == 1 && b_neighbor != b_new) {
+                            neighbor[min_beath_new][b_neighbor] = 1;
+                            neighbor[b_neighbor][min_beath_new] = 1;
+                            neighbor[b_new][b_neighbor] = 0;
+                            neighbor[b_neighbor][b_new] = 0;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
 }
 
 void init_map() {
@@ -71,7 +134,8 @@ void init_map() {
     memset(gds, -1, sizeof(gds));
     memset(dis, -1, sizeof(dis));
     memset(global_dis, -1, sizeof(global_dis));
-
+    memset(area_size, 0, sizeof(area_size));
+    memset(neighbor, 0, sizeof(neighbor));
     // * 加载地图 (200 x 200 grids)
     for (int i = 0; i < n; i++) {
         scanf("%s", ch[i]);
@@ -189,7 +253,7 @@ int main() {
     init_map();
 
     // get information of maps
-    // show_gds();
+    show_gds();
     // show_global_dis();
     // show_dis();
 
