@@ -215,8 +215,8 @@ namespace pns {
         int area_id = gds[robot[rid].x][robot[rid].y];
 
         // ! Debug
-        // Debug("[DOWNHILL] start downhill planning for robot %d\n", rid);
-        // Debug("start at (%d, %d)\n", x, y);
+        debug_robot("[DOWNHILL] start downhill planning for robot %d\n", rid);
+        debug_robot("start at (%d, %d)\n", x, y);
 
         append_path(rid, cur_pos);
 
@@ -244,25 +244,29 @@ namespace pns {
      */
     inline void backtrace_path(const int rid) {
         // ! Debug
-        Assert(ph(rid) != pt(rid), "backtrace_path: path is empty!\n");
+        if (empty_path(rid)) {
+            debug_robot("backtrace_path: path is empty!\n");
+        }
         for (int i = ph(rid); i != pt(rid); mod_inc(i)) {
             int pos_x = pos_decode_x(move_path[rid][i]), pos_y = pos_decode_y(move_path[rid][i]);
-            // if ((i + 1) % NN != pt(rid))
-                // Debug("(%d, %d) -> ", pos_x, pos_y);
-            // else
-                // Debug("(%d, %d)\n", pos_x, pos_y);
+            if ((i + 1) % NN != pt(rid))
+                debug_robot("(%d, %d) -> ", pos_x, pos_y);
+            else
+                debug_robot("(%d, %d)\n", pos_x, pos_y);
         }
     }
 
     inline void backtrace_avoid_path(const int rid) {
         // ! Debug
-        Assert(ah(rid) != at(rid), "backtrace_avoid_path: path is empty!\n");
+        if (empty_avoid_path(rid)) {
+            debug_robot("backtrace_avoid_path: path is empty!\n");
+        }
         for (int i = ah(rid); i != at(rid); mod_inc(i)) {
             int pos_x = pos_decode_x(avoid_path[rid][i]), pos_y = pos_decode_y(avoid_path[rid][i]);
-            // if ((i + 1) % NN != at(rid))
-                // Debug("(%d, %d) -> ", pos_x, pos_y);
-            // else
-                // Debug("(%d, %d)\n", pos_x, pos_y);
+            if ((i + 1) % NN != at(rid))
+                debug_robot("(%d, %d) -> ", pos_x, pos_y);
+            else
+                debug_robot("(%d, %d)\n", pos_x, pos_y);
         }
     }
 

@@ -1,5 +1,7 @@
 #pragma once
 #include <bits/stdc++.h>
+#include <bits/types/time_t.h>
+#include <random>
 using namespace std;
 
 #include "debug.h"
@@ -45,14 +47,14 @@ namespace rns {
     inline int robot_get(int id) {
         printf("get %d\n", id);
         // ! Debug
-        // Debug("[GET] robot %d get val %d at (%d, %d)\n", id, robot[id].val_of_good, robot[id].x, robot[id].y);
+        debug_robot("[GET] robot %d get val %d at (%d, %d)\n", id, robot[id].val_of_good, robot[id].x, robot[id].y);
         return 0;
     }
     // pull
     inline int robot_pull(int id) {
         printf("pull %d\n", id);
         // ! Debug
-        // Debug("[PULL] robot %d pull val %d at (%d, %d)\n", id, robot[id].val_of_good, robot[id].x, robot[id].y);
+        debug_robot("[PULL] robot %d pull val %d at (%d, %d)\n", id, robot[id].val_of_good, robot[id].x, robot[id].y);
         robot[id].val_of_good = 0;
         return 0;
     }
@@ -79,13 +81,13 @@ namespace rns {
     */
     inline int set_move_path(const int rid) {
         // ! Debug
-        // Debug("[ROBOT] set move path for robot %d\n", rid);
+        debug_robot("[ROBOT] set move path for robot %d\n", rid);
         int start_pos = pns::pos_encode(robot[rid].x, robot[rid].y);
         int end_pos = pns::pos_encode(robot[rid].mbx, robot[rid].mby);
         bool planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
         if (!planning_res) {
             // ! Debug
-            // Debug("[ROBOT] path planning failed for robot %d\n", rid);
+            debug_robot("[ROBOT] path planning failed for robot %d\n", rid);
             return -1;
         }
         pns::skip_first(rid);  // 跳过首次移动，因为第一个点是机器人当前位置
@@ -100,12 +102,12 @@ namespace rns {
      */
     inline int set_berth_path(const int rid) {
         // ! Debug
-        // Debug("[ROBOT] set berth path for robot %d\n", rid);
+        debug_robot("[ROBOT] set berth path for robot %d\n", rid);
         // TODO: ...
         bool planning_res = pns::path_planning_downhill(rid);
         if (!planning_res) {
             // ! Debug
-            // Debug("[ROBOT] path planning failed for robot %d\n", rid);
+            debug_robot("[ROBOT] path planning failed for robot %d\n", rid);
             return -1;
         }
         pns::skip_first(rid);  // 跳过首次移动，因为第一个点是机器人当前位置
@@ -162,9 +164,13 @@ namespace rns {
             } else {
                 nxt_pos = pns::next_pos_of(i);
                 // ! Debug
-                // Debug("[DETC] next pos of robot %d: (%d, %d)\n", i, pns::pos_decode_x(nxt_pos), pns::pos_decode_y(nxt_pos));
+                // debug_robot("[DETC] next pos of robot %d: (%d, %d)\n", i, pns::pos_decode_x(nxt_pos), pns::pos_decode_y(nxt_pos));
                 // TODO: 临时解决方案，需要修正
                 if (nxt_pos == -1) {
+                    nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
+                }
+                if (robot[i].wait) {
+                    // 如果机器人处于恢复状态，则下一步位置就是当前位置
                     nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
                 }
             }
@@ -193,8 +199,11 @@ namespace rns {
 
         // ? 存在冲突，需要从能够走的位置中选择一个
         // * 1. 首先考虑除了当前下一步位置之外的其他上下左右位置
+        // TODO: 考虑加入一定的随机性
+        int idx;
         for (int i = 0; i < 4; i++) {
-            int x = cur_x + magic_directions[i], y = cur_y + magic_directions[i + 1];
+            idx = i;
+            int x = cur_x + magic_directions[idx], y = cur_y + magic_directions[idx + 1];
             int pos = pns::pos_encode(x, y);
             if (invalid_pos_masking.count(pos) == 0) {
                 pns::insert_avoid_path(rid, cur_pos);
@@ -217,13 +226,13 @@ namespace rns {
     */
     inline int exec_move(const int rid) {
         // ! Debug
-        // Debug("[ROBOT] Executing move command for robot %d\n", rid);
+        debug_robot("[ROBOT] Executing move command for robot %d\n", rid);
 
         // * 如果需要暂停则跳过当前帧
         if (robot[rid].wait) {
             robot[rid].wait = 0;
             // ! Debug
-            // Debug("[ROBOT] Robot %d is waiting at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
+            debug_robot("[ROBOT] Robot %d is waiting at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
             return 0;
         }
 
@@ -234,7 +243,7 @@ namespace rns {
         Assert(pns::valid_pos(nxt_x, nxt_y), "[ROBOT] Invalid position (%d, %d)!\n", nxt_x, nxt_y);
         Assert(abs(nxt_x - robot[rid].x) + abs(nxt_y - robot[rid].y) == 1, "[ROBOT] Invalid move command at (%d, %d) -> (%d, %d)!\n", robot[rid].x, robot[rid].y, nxt_x, nxt_y);
         // ! Debug
-        // Debug("[ROBOT] Robot %d move from (%d, %d) to (%d, %d)\n", rid, robot[rid].x, robot[rid].y, nxt_x, nxt_y);
+        debug_robot("[ROBOT] Robot %d move from (%d, %d) to (%d, %d)\n", rid, robot[rid].x, robot[rid].y, nxt_x, nxt_y);
 
         // TODO: 添加碰撞检测模块
         if (nxt_x == robot[rid].x) {
@@ -255,16 +264,16 @@ namespace rns {
     * @return int 
     */
     inline int execute_robot_instructions(int frame) {
-        // Debug("%05d F | execute_robot_instructions\n", frame);
+        debug_robot("%05d F | execute_robot_instructions\n", frame);
 
         // ! Debug
-        // for (int i = 0; i < ROBOT_NUM; i++) {
-        //     if (robot[i].status == rns::ROBOT_IDLE) {
-        //         Debug("robot %d at (%d, %d) is in idle status\n", i, robot[i].x, robot[i].y);
-        //     } else {
-        //         Debug("robot %d at (%d, %d) is in working status\n", i, robot[i].x, robot[i].y);
-        //     }
-        // }
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (robot[i].status == rns::ROBOT_IDLE) {
+                debug_robot("robot %d at (%d, %d) is in idle status\n", i, robot[i].x, robot[i].y);
+            } else {
+                debug_robot("robot %d at (%d, %d) is in working status\n", i, robot[i].x, robot[i].y);
+            }
+        }
 
         // * 1. 分配货物
         for (auto it = order_of_berth.begin(); it != order_of_berth.end(); it++) {
@@ -288,11 +297,11 @@ namespace rns {
             // 将货物分配给机器人
             // ! Debug
             // Assert(robot[rid].status != rns::ROBOT_IDLE, "Robot %d is in idle status!\n", rid);
-            // if (robot[rid].status == rns::ROBOT_IDLE) {
-            //     Debug("Robot %d is in idle status!\n", rid);
-            // }
+            if (robot[rid].status == rns::ROBOT_IDLE) {
+                debug_robot("Robot %d is in idle status!\n", rid);
+            }
             // ! Debug
-            // Debug("assign good (%d, %d) of val %d to robot %d\n", good.val, good.x, good.y, rid);
+            debug_robot("assign good (%d, %d) of val %d to robot %d\n", good.val, good.x, good.y, rid);
             robot[rid].target = rns::T_GOOD;
             robot[rid].mbx = good.x;
             robot[rid].mby = good.y;
@@ -301,10 +310,10 @@ namespace rns {
 
             set_move_path(rid);  // * 设置移动路径
             // ! Debug
-            // Debug("finish set move path for robot %d\n", rid);
+            debug_robot("finish set move path for robot %d\n", rid);
             // ! Debug
             pns::backtrace_path(rid);
-            // Debug("finish backtrace path for robot %d\n", rid);
+            debug_robot("finish backtrace path for robot %d\n", rid);
         }
 
         // * 2. 碰撞检测和移动执行
@@ -314,9 +323,9 @@ namespace rns {
             // ? 进行冲突检测
             int crash_res = crash_detection(rid);
             // ! Debug
-            // if (crash_res == rns::CRASH_HAPPENED) {
-            //     Debug("[CRASH] Crash happened for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
-            // }
+            if (crash_res == rns::CRASH_HAPPENED) {
+                debug_robot("[CRASH] Crash happened for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
+            }
         }
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;  // 跳过处于恢复状态的机器人
@@ -347,7 +356,7 @@ namespace rns {
                 set_berth_path(rid);  // * 设置运送货物到泊位的路径
                 // ! Debug
                 pns::backtrace_path(rid);
-                // Debug("finish backtrace path for robot %d\n", rid);
+                debug_robot("finish backtrace path for robot %d\n", rid);
             }
         }
 

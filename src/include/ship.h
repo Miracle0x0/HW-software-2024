@@ -20,7 +20,7 @@ namespace sns {
 
     inline int ship_move(int id, int berth_id, int frame) {
         // 船 id 去往 泊位 berth_id
-        Debug("frame %5d| ship %d to %d\n", frame, id, berth_id);
+        debug_ship("frame %5d| ship %d to %d\n", frame, id, berth_id);
         ship[id].status = sns::SHIP_TRANSFERRING;
         ship[id].pos = berth_id;
         printf("ship %d %d\n", id, berth_id);
@@ -28,7 +28,7 @@ namespace sns {
     }
 
     inline int ship_go(int id, int frame) {
-        Debug("frame %5d| go %d\n", frame, id);
+        debug_ship("frame %5d| go %d\n", frame, id);
         printf("go %d\n", id);
         ship[id].status = 1;
         ship[id].pos = -1;
@@ -38,15 +38,14 @@ namespace sns {
 
 inline int check_ship(int frame) {
     for (int i = 0; i < SHIP_NUM; i++) {
-        Debug("frmae %5d| ship %d status %d pos %d\n", frame, i, ship[i].status, ship[i].pos);
+        debug_ship("frame %5d| ship %d status %d pos %d\n", frame, i, ship[i].status, ship[i].pos);
         // status: 0 移动中
         // status: 2 等待中
-        if(ship[i].status == sns::SHIP_TRANSFERRING || ship[i].status == sns::SHIP_WAITING){
+        if (ship[i].status == sns::SHIP_TRANSFERRING || ship[i].status == sns::SHIP_WAITING) {
             // do nothing
             continue;
-        }
-        else if(ship[i].status == sns::SHIP_WORKING){// status: 1 working
-            if (ship[i].pos == -1) {   
+        } else if (ship[i].status == sns::SHIP_WORKING) {  // status: 1 working
+            if (ship[i].pos == -1) {
                 // pos:-1 status:1 表示船在虚拟点
                 //        发送 ship 指令
                 // v1.0: 选择价值高且没有船的泊位
@@ -63,14 +62,13 @@ inline int check_ship(int frame) {
                 ship[i].num = 0;
                 ship[i].value = 0;
                 sns::ship_move(i, ind, frame);
-                
-            }
-            else {
+
+            } else {
                 // pos:0-9 status:1 表示船在泊位 装货,此时可发出 ship_go 指令
                 // 船先离港后装卸货物
 
                 // v1.0: 装满，或者岸边没有货物 运送至虚拟点
-                Debug("frmae %5d| ship %d ship_num %d berth %d good_vla %d\n", frame, i, ship[i].num, ship[i].pos, berth[ship[i].pos].goods_value);
+                debug_ship("frame %5d| ship %d ship_num %d berth %d good_val %d\n", frame, i, ship[i].num, ship[i].pos, berth[ship[i].pos].goods_value.size());
                 if (ship_capacity == ship[i].num || berth[ship[i].pos].goods_value.empty())
                     sns::ship_go(i, frame);
 
@@ -92,7 +90,7 @@ inline int check_ship(int frame) {
                 }
             }
         }
-         
+
     }  // end of ship loop
     return 0;
 }

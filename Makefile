@@ -25,7 +25,7 @@ clean_replay:
 clean: clean_code clean_replay
 	@echo "${GREEN}Cleanup code and replay files.${NC}"
 	@echo "${GREEN}Cleanup debug logs.${NC}"
-	@rm -f debug.log
+	@rm -f *.log
 	@echo "${GREEN}Cleanup txt files.${NC}"
 	@rm -f *.txt
 	@echo "${GREEN}Cleanup images.${NC}"

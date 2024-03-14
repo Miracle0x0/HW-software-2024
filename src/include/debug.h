@@ -5,12 +5,51 @@ using namespace std;
 // ===== header begin =====
 
 /**
+ * @brief 将日志输出到文件 debug_robot.log
+ * 
+ * @param format 
+ * @param ... 
+ */
+inline void debug_robot(const char *format, ...) {
+#ifdef LOCAL_DEBUG
+    FILE *file = fopen("debug_robot.log", "a");
+    if (file != nullptr) {
+        va_list args;
+        va_start(args, format);
+        vfprintf(file, format, args);
+        va_end(args);
+        fclose(file);
+    }
+#endif
+}
+
+/**
+ * @brief 将日志输出到文件 debug_ship.log
+ * 
+ * @param format 
+ * @param ... 
+ */
+inline void debug_ship(const char *format, ...) {
+#ifdef LOCAL_DEBUG
+    FILE *file = fopen("debug_ship.log", "a");
+    if (file != nullptr) {
+        va_list args;
+        va_start(args, format);
+        vfprintf(file, format, args);
+        va_end(args);
+        fclose(file);
+    }
+#endif
+}
+
+/**
  * @brief 将日志输出到文件 debug.log
  * 
  * @param format 
  * @param ... 
  */
 inline void Debug(const char *format, ...) {
+#ifdef LOCAL_DEBUG
     FILE *file = fopen("debug.log", "a");
     if (file != nullptr) {
         va_list args;
@@ -19,6 +58,7 @@ inline void Debug(const char *format, ...) {
         va_end(args);
         fclose(file);
     }
+#endif
 }
 
 /**
@@ -28,6 +68,7 @@ inline void Debug(const char *format, ...) {
  * @param ... 
  */
 inline void Visualize(const char *format, ...) {
+#ifdef LOCAL_DEBUG
     FILE *file = fopen("partition.txt", "a");
     if (file != nullptr) {
         va_list args;
@@ -36,6 +77,7 @@ inline void Visualize(const char *format, ...) {
         va_end(args);
         fclose(file);
     }
+#endif
 }
 
 /**
@@ -45,6 +87,7 @@ inline void Visualize(const char *format, ...) {
  * @param ... 
  */
 inline void Dis(const char *format, ...) {
+#ifdef LOCAL_DEBUG
     FILE *file = fopen("distance.txt", "a");
     if (file != nullptr) {
         va_list args;
@@ -53,9 +96,11 @@ inline void Dis(const char *format, ...) {
         va_end(args);
         fclose(file);
     }
+#endif
 }
 
 inline void GlobalDis(int id, const char *format, ...) {
+#ifdef LOCAL_DEBUG
     char filename[20];
     sprintf(filename, "global_dis_%d.txt", id);
     FILE *file = fopen(filename, "a");
@@ -66,6 +111,7 @@ inline void GlobalDis(int id, const char *format, ...) {
         va_end(args);
         fclose(file);
     }
+#endif
 }
 
 #define RED_COLOR_START "\033[1;31m"
