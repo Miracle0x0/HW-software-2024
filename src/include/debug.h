@@ -97,7 +97,10 @@ inline void GlobalDis(int id, const char *format, ...) {
  * @brief 未实现的函数
  * 
  */
-#define NOT_IMPL \
-    fprintf(stderr, RED_COLOR_START "[TODO] Not implemented yet at %s:%d\n" COLOR_END, __FILE__, __LINE__)
+#define NOT_IMPL                                                                                                \
+    do {                                                                                                        \
+        fprintf(stderr, RED_COLOR_START "[TODO] Not implemented yet at %s:%d\n" COLOR_END, __FILE__, __LINE__); \
+        Debug("[TODO] Not implemented yet at %s:%d\n", __FILE__, __LINE__);                                     \
+    } while (0)
 
 // ===== header end =====

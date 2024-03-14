@@ -9,6 +9,7 @@ using namespace std;
 const int n = 200;                 // 地图边界
 const int ROBOT_NUM = 10;          // 机器人数量
 const int BERTH_NUM = 10;          // 泊位数量
+const int BERTH_SIZE = 4;          // 泊位大小
 const int SHIP_NUM = 5;            // 轮船数量
 const int FRAME_NUM = 15000;       // 总帧数（初赛为 15000）
 const int N = n + 10;              // 地图边界（防越界）
@@ -30,8 +31,10 @@ struct Robot {
     // * shape: 1x1
     int x, y, goods;
     int status;
-    int target;
-    int mbx, mby;
+    int val_of_good;  // 携带货物的价值
+    int wait;         // 是否处于等待状态（即暂停一帧）
+    int target;       // 0: 无目标 1: 货物 2: 泊位
+    int mbx, mby;     // 目标坐标
     Robot() {}
     Robot(int startX, int startY) : x(startX), y(startY) {}
 } robot[ROBOT_NUM * 2];
