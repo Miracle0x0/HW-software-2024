@@ -95,7 +95,30 @@ char okk[100];
 inline float cost_of_good(int x, int y, int val) {
     return ((float) val) / dis[x][y];
 }
-
+/**
+ * @brief 查询港口是否有船，返回 1 表示有船，0 表示无船
+ * 
+ * @param id 
+ */
+inline int query_berth(int id) {
+    for (int i = 0; i < SHIP_NUM; i++)
+        if (ship[i].pos == id) return 1;
+    return 0;
+}
+/**
+ * @brief 查询位置x,y处于几号泊位 -1表示不在泊位
+ * 
+ * @param x y
+ */
+inline int query_berth_id(int x, int y){
+    for(int i = 0; i < BERTH_NUM; i++){
+        if(berth[i].x <= x && x < berth[i].x + BERTH_SIZE &&
+            berth[i].y <= y && y < berth[i].y + BERTH_SIZE){
+                return i;
+            }
+    }
+    return -1;
+}
 // 货物的队列（每个泊位或分区维护一个优先队列）
 priority_queue<pair<float, Good>> q_goods[BERTH_NUM];
 // 按照装卸速度对泊位队列排序

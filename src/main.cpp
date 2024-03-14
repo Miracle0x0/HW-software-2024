@@ -11,7 +11,7 @@ bool que_finish[BERTH_NUM];
 
 // 子图划分，采用 BFS
 void global_graph_partition() {
-    Debug("[INIT] global graph partition\n");
+    // Debug("[INIT] global graph partition\n");
     // 从每个 BERTH 开始 BFS，遇到障碍或海洋则停止
     vector<queue<int>> ques(BERTH_NUM);
     // TODO: 考虑用多线程实现
@@ -168,13 +168,13 @@ int get_inputs(const int frame) {
 
 int process_inputs(int frame) {
     // TODO: ...
-    Debug("%05d F | process_inputs\n", frame);
+    // Debug("%05d F | process_inputs\n", frame);
 
     // process robot
     rns::execute_robot_instructions(frame);
 
     // process ship
-    check_ship();
+    check_ship(frame);
 
     return 0;
 }
@@ -193,7 +193,7 @@ int main() {
 
     for (int frame = 1; frame <= FRAME_NUM; frame++) {
         // ! Debug
-        Debug("===== Frame %05d start =====\n", frame);
+        // Debug("===== Frame %05d start =====\n", frame);
         // start of frame
         int id = get_inputs(frame);
 
@@ -204,7 +204,7 @@ int main() {
         fflush(stdout);
 
         // ! Debug
-        Debug("===== Frame %05d end =====\n", frame);
+        // Debug("===== Frame %05d end =====\n", frame);
     }
 
     return 0;

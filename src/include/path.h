@@ -215,8 +215,8 @@ namespace pns {
         int area_id = gds[robot[rid].x][robot[rid].y];
 
         // ! Debug
-        Debug("[DOWNHILL] start downhill planning for robot %d\n", rid);
-        Debug("start at (%d, %d)\n", x, y);
+        // Debug("[DOWNHILL] start downhill planning for robot %d\n", rid);
+        // Debug("start at (%d, %d)\n", x, y);
 
         append_path(rid, cur_pos);
 
@@ -247,10 +247,10 @@ namespace pns {
         Assert(ph(rid) != pt(rid), "backtrace_path: path is empty!\n");
         for (int i = ph(rid); i != pt(rid); mod_inc(i)) {
             int pos_x = pos_decode_x(move_path[rid][i]), pos_y = pos_decode_y(move_path[rid][i]);
-            if ((i + 1) % NN != pt(rid))
-                Debug("(%d, %d) -> ", pos_x, pos_y);
-            else
-                Debug("(%d, %d)\n", pos_x, pos_y);
+            // if ((i + 1) % NN != pt(rid))
+                // Debug("(%d, %d) -> ", pos_x, pos_y);
+            // else
+                // Debug("(%d, %d)\n", pos_x, pos_y);
         }
     }
 
@@ -259,10 +259,10 @@ namespace pns {
         Assert(ah(rid) != at(rid), "backtrace_avoid_path: path is empty!\n");
         for (int i = ah(rid); i != at(rid); mod_inc(i)) {
             int pos_x = pos_decode_x(avoid_path[rid][i]), pos_y = pos_decode_y(avoid_path[rid][i]);
-            if ((i + 1) % NN != at(rid))
-                Debug("(%d, %d) -> ", pos_x, pos_y);
-            else
-                Debug("(%d, %d)\n", pos_x, pos_y);
+            // if ((i + 1) % NN != at(rid))
+                // Debug("(%d, %d) -> ", pos_x, pos_y);
+            // else
+                // Debug("(%d, %d)\n", pos_x, pos_y);
         }
     }
 
