@@ -1,0 +1,54 @@
+name: Makefile CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-run:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install clang-format cmake make
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: Copy source files to tmp directory
+      run: |
+        mkdir tmp
+        cp -r src tmp
+      
+    - name: Merge headers into target file
+      run: |
+        python3 helper/merge_header.py
+
+    - name: Format code with clang-format
+      run: |
+        clang-format -i tmp/main.cpp --style=file:.clang-format
+
+    - name: Build project with CMake
+      run: |
+        mkdir tmp/build
+        cd tmp/build
+        cmake ..
+        make -j
+      
+    - name: Test executable
+      run: |
+        if [ -f ${{ github.workspace }}/tmp/build/main ]; then
+          ./run_self.sh;
+        else
+          echo "Error: tmp/build/main does not exist.";
+          exit 1;
+        fi
