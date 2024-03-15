@@ -11,6 +11,40 @@ using namespace std;
 
 bool que_finish[BERTH_NUM];
 
+// ! Debug
+void show_gds() {
+#ifdef LOCAL_DEBUG
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            (gds[i][j] == -1) ? Visualize("x") : Visualize("%d", gds[i][j]);
+        }
+        Visualize("\n");
+    }
+#endif
+}
+
+// ! Debug
+void show_dis() {
+#ifdef LOCAL_DEBUG
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) Dis("%d ", dis[i][j]);
+        Dis("\n");
+    }
+#endif
+}
+
+// ! Debug
+void show_global_dis() {
+#ifdef LOCAL_DEBUG
+    for (int b = 0; b < BERTH_NUM; b++) {
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) GlobalDis(b, "%d ", global_dis[b][i][j]);
+            GlobalDis(b, "\n");
+        }
+    }  // end of berth loop
+#endif
+}
+
 // 子图划分，采用 BFS
 void global_graph_partition() {
     // Debug("[INIT] global graph partition\n");
@@ -50,7 +84,10 @@ void global_graph_partition() {
             }
         }  // end of BFS search
         // ! Debug
-        Assert(ques[b].empty(), "BFS of berth %d error!\n", b);
+        // Assert(ques[b].empty(), "BFS of berth %d error!\n", b);
+        if (ques[b].empty()) {
+            Debug("BFS of berth %d finished\n", b);
+        }
     }  // end of berth loop
 
     // 计算每个点到各个泊位的全局最短距离
@@ -67,54 +104,56 @@ void global_graph_partition() {
     //计算分区的面积和邻接关系
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            if(gds[i][j] != -1) area_size[gds[i][j]]++;
+            if (gds[i][j] != -1) area_size[gds[i][j]]++;
             for (int k = 1; k < 3; k++) {
                 int nxt_x = i + magic_directions[k], nxt_y = j + magic_directions[k + 1];
                 if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
-                if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER ||ch[i][j] == SEA || ch[i][j] == BORDER) continue;
-                if (gds[i][j] != gds[nxt_x][nxt_y]){
-                    neighbor[gds[i][j]][gds[nxt_x][nxt_y]]=1;
-                    neighbor[gds[nxt_x][nxt_y]][gds[i][j]]=1;
-                } 
+                if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || ch[i][j] == SEA || ch[i][j] == BORDER) continue;
+                if (gds[i][j] != gds[nxt_x][nxt_y]) {
+                    neighbor[gds[i][j]][gds[nxt_x][nxt_y]] = 1;
+                    neighbor[gds[nxt_x][nxt_y]][gds[i][j]] = 1;
+                }
             }
         }
     }
 
-    for(int b = 0; b < BERTH_NUM; b++){
-        all_area_size+=area_size[b];
+    for (int b = 0; b < BERTH_NUM; b++) {
+        all_area_size += area_size[b];
         Debug("area_size of %d is %d\n", b, area_size[b]);
     }
     Debug("all_area_size is %d \n", all_area_size);
+    int average_area_size = all_area_size / BERTH_NUM;
     int flag = 1;
-    while(flag == 1 ){
+    while (flag == 1) {
         //分区的合并，把面积小于平均值的地区合并至面积最小的邻接分区
-        flag=0;
-        for(int b = 0; b < BERTH_NUM; b++){
-            if(area_size[b] < all_area_size/10){
+        flag = 0;
+        for (int b = 0; b < BERTH_NUM; b++) {
+            if (area_size[b] < average_area_size) {
                 int min_size = n * n;
                 int min_beath = b;
-                for (int bn = 0; bn < BERTH_NUM; bn++){
-                    if(bn != b && neighbor[b][bn] == 1){
-                        if(area_size[bn] < min_size){
+                for (int bn = 0; bn < BERTH_NUM; bn++) {
+                    if (bn != b && neighbor[b][bn] == 1) {
+                        if (area_size[bn] < min_size) {
                             min_size = area_size[bn];
                             min_beath = bn;
                         }
                     }
                 }
-                if(min_beath != b){
-                    flag=1;
-                    int min_beath_new=berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
-                    int b_new=berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
+                if (min_beath != b) {
+                    flag = 1;
+                    int min_beath_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
+                    int b_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
                     area_size[min_beath_new] += area_size[b_new];
-                    area_size[b_new]=0;
+                    area_size[b_new] = 0;
                     for (int i = 0; i < n; i++) {
                         for (int j = 0; j < n; j++) {
                             if (gds[i][j] == b_new) {
                                 gds[i][j] = min_beath_new;
+                                dis[i][j] = global_dis[min_beath_new][i][j];
                             }
                         }
                     }
-                    for (int b_neighbor = 0; b_neighbor <= BERTH_NUM; b_neighbor++) {
+                    for (int b_neighbor = 0; b_neighbor < BERTH_NUM; b_neighbor++) {
                         if (neighbor[b_new][b_neighbor] == 1 && b_neighbor != b_new) {
                             neighbor[min_beath_new][b_neighbor] = 1;
                             neighbor[b_neighbor][min_beath_new] = 1;
@@ -126,7 +165,12 @@ void global_graph_partition() {
             }
         }
     }
-    
+    // ! Debug
+    Debug("After merge:\n");
+    for (int b = 0; b < BERTH_NUM; b++) {
+        all_area_size += area_size[b];
+        Debug("area_size of %d is %d\n", b, area_size[b]);
+    }
 }
 
 void init_map() {
@@ -150,9 +194,9 @@ void init_map() {
     }
     sort(order_of_berth.begin(), order_of_berth.end(), greater<pair<int, int>>());
     // ! Debug
-    // Debug("berth order:\n");
-    // for (auto &i: order_of_berth)
-    //     Debug("berth_id: %d | loading_speed: %d\n", i.second, i.first);
+    Debug("berth order of loading_speed:\n");
+    for (auto &i: order_of_berth)
+        Debug("berth_id: %d | loading_speed: %d\n", i.second, i.first);
 
     // * 轮船容积
     scanf("%d", &ship_capacity);
@@ -161,48 +205,62 @@ void init_map() {
     // init graph
     global_graph_partition();
 
+    // * 设置能够调度的机器人数量
+    int assignable_robot_num = ROBOT_NUM;
+    // ! Debug
+    Debug("assignable_robot_num = %d\n", assignable_robot_num);
+
+    // TODO: 设置每个泊位对应区域的最多分配到的机器人数量
+    // TODO: 目前仅考虑区域的面积大小
+    int remain_assignable_robot_num = assignable_robot_num;
+    for (int i = 0; i < BERTH_NUM; i++) {
+        if (area_size[i] == 0) continue;
+        max_robot_capacity[i] = int((float(area_size[i] * assignable_robot_num) / float(all_area_size)));
+        remain_assignable_robot_num -= max_robot_capacity[i];
+    }
+    // ! Debug
+    Debug("After first assignment:\n");
+    for (int i = 0; i < BERTH_NUM; i++) {
+        Debug("max_robot_capacity[%d] = %d\n", i, max_robot_capacity[i]);
+    }
+    // TODO: 如果还有没有分配的机器人，按照装载速度分配
+    while (remain_assignable_robot_num != 0) {
+        for (auto &it: order_of_berth) {
+            int bid = it.second;
+            if (remain_assignable_robot_num == 0) break;
+            if (area_size[bid] == 0) continue;
+            max_robot_capacity[bid]++;
+            remain_assignable_robot_num--;
+        }
+    }
+    // ! Debug
+    Assert(remain_assignable_robot_num == 0, "Error: remain_assignable_robot_num = %d\n", remain_assignable_robot_num);
+    // ! Debug
+    Debug("Final assignment:\n");
+    for (int i = 0; i < BERTH_NUM; i++) {
+        Debug("max_robot_capacity[%d] = %d\n", i, max_robot_capacity[i]);
+    }
+
     // init robot
     for (int i = 0; i < ROBOT_NUM; i++) {
         robot[i].status = rns::ROBOT_WORKING;
         robot[i].target = rns::T_NONE;
     }
+
+    // TODO: show gds or dis
+    show_gds();
+
     // end of init
     printf("OK\n");
     fflush(stdout);
 }
 
-// ! Debug
-void show_gds() {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) {
-            (gds[i][j] == -1) ? Visualize("x") : Visualize("%d", gds[i][j]);
-        }
-        Visualize("\n");
-    }
-}
-
-// ! Debug
-void show_dis() {
-    for (int i = 0; i < n; i++) {
-        for (int j = 0; j < n; j++) Dis("%d ", dis[i][j]);
-        Dis("\n");
-    }
-}
-
-// ! Debug
-void show_global_dis() {
-    for (int b = 0; b < BERTH_NUM; b++) {
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) GlobalDis(b, "%d ", global_dis[b][i][j]);
-            GlobalDis(b, "\n");
-        }
-    }  // end of berth loop
-}
-
 int get_inputs(const int frame) {
     int x, y, k, val, id, money;
     scanf("%d %d", &id, &money);  // 帧序号，当前金钱数
-    scanf("%d", &k);              // 场上新增货物的数量 K
+    // ! Debug
+    Debug("frame %05d | id %d | money %d\n", frame, id, money);
+    scanf("%d", &k);  // 场上新增货物的数量 K
     // * K 行数据，每一行表示一个新增货物
     // * (横坐标，纵坐标，金额)
     for (int i = 0; i < k; i++) {
@@ -253,15 +311,22 @@ int main() {
     init_map();
 
     // get information of maps
-    show_gds();
+    // show_gds();
     // show_global_dis();
     // show_dis();
 
     for (int frame = 1; frame <= FRAME_NUM; frame++) {
         // ! Debug
-        // Debug("===== Frame %05d start =====\n", frame);
+        Debug("===== Frame %05d start =====\n", frame);
         // start of frame
         int id = get_inputs(frame);
+
+        // * 修正实际帧序号
+        if (frame != id) {
+            // ! Debug
+            Debug("[WARNING] frameskip | frame %d to %d\n", frame, id);
+            frame = id;
+        }
 
         process_inputs(frame);
 
@@ -270,7 +335,7 @@ int main() {
         fflush(stdout);
 
         // ! Debug
-        // Debug("===== Frame %05d end =====\n", frame);
+        Debug("===== Frame %05d end =====\n", frame);
     }
 
     return 0;

@@ -165,7 +165,7 @@ namespace pns {
      * @return true 
      * @return false 
      */
-    inline bool path_planning_bfs(const int rid, const int start_pos, const int end_pos) {
+    inline bool path_planning_bfs(const int rid, const int start_pos, const int end_pos, const bool self_area_only = true) {
         clear_robot(rid);
 
         push_que(rid, start_pos);
@@ -179,6 +179,11 @@ namespace pns {
                 int nxt_x = x + magic_directions[k], nxt_y = y + magic_directions[k + 1];
                 int nxt_pos = pos_encode(nxt_x, nxt_y);
                 if (!valid_pos(nxt_x, nxt_y) || vis[rid][nxt_pos]) continue;
+
+                if (self_area_only) {
+                    // * 仅搜索当前分区的点位
+                    if (gds[nxt_x][nxt_y] != gds[x][y]) continue;
+                }
 
                 mark_vis(rid, nxt_pos);
                 parent_of(rid, nxt_pos) = cur;

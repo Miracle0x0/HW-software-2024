@@ -31,10 +31,11 @@ struct Robot {
     // * shape: 1x1
     int x, y, goods;
     int status;
-    int val_of_good;  // 携带货物的价值
-    int wait;         // 是否处于等待状态（即暂停一帧）
-    int target;       // 0: 无目标 1: 货物 2: 泊位
-    int mbx, mby;     // 目标坐标
+    int normal_assignment;  // 是否为正常调度（区分首次调度）
+    int val_of_good;        // 携带货物的价值
+    int wait;               // 是否处于等待状态（即暂停一帧）
+    int target;             // 0: 无目标 1: 货物 2: 泊位
+    int mbx, mby;           // 目标坐标
     Robot() {}
     Robot(int startX, int startY) : x(startX), y(startY) {}
 } robot[ROBOT_NUM * 2];
@@ -82,14 +83,14 @@ struct Good {
 // * 变量定义
 
 int ship_capacity;
-int all_area_size=0;
+int all_area_size = 0;
 char ch[N][N];
 int gds[N][N];
-int dis[N][N];                    // BFS 得到的距离矩阵，代表当前位置到达各个泊位的距离
-int global_dis[BERTH_NUM][N][N];  // 距离矩阵，保存每个点到达各个泊位的距离
-int min_dis[N][N];                // 最优距离矩阵，保存每个点到达各个泊位的最短距离
-int area_size[BERTH_NUM];              //每个泊位的分区面积
-int neighbor[BERTH_NUM][BERTH_NUM];//泊位是否近邻
+int dis[N][N];                       // BFS 得到的距离矩阵，代表当前位置到达各个泊位的距离
+int global_dis[BERTH_NUM][N][N];     // 距离矩阵，保存每个点到达各个泊位的距离
+int min_dis[N][N];                   // 最优距离矩阵，保存每个点到达各个泊位的最短距离
+int area_size[BERTH_NUM];            // 每个泊位的分区面积
+int neighbor[BERTH_NUM][BERTH_NUM];  // 泊位是否近邻
 
 char okk[100];
 
@@ -108,23 +109,32 @@ inline int query_berth(int id) {
         if (ship[i].pos == id) return 1;
     return 0;
 }
+
 /**
  * @brief 查询位置x,y处于几号泊位 -1表示不在泊位
  * 
  * @param x y
  */
-inline int query_berth_id(int x, int y){
-    for(int i = 0; i < BERTH_NUM; i++){
-        if(berth[i].x <= x && x < berth[i].x + BERTH_SIZE &&
-            berth[i].y <= y && y < berth[i].y + BERTH_SIZE){
-                return i;
-            }
+inline int query_berth_id(int x, int y) {
+    for (int i = 0; i < BERTH_NUM; i++) {
+        if (berth[i].x <= x && x < berth[i].x + BERTH_SIZE &&
+            berth[i].y <= y && y < berth[i].y + BERTH_SIZE) {
+            return i;
+        }
     }
     return -1;
 }
+
 // 货物的队列（每个泊位或分区维护一个优先队列）
 priority_queue<pair<float, Good>> q_goods[BERTH_NUM];
 // 按照装卸速度对泊位队列排序
 vector<pair<int, int>> order_of_berth;
+
+// TODO: 每个泊位对应区域能够分配到的最大机器人数量（和泊位大小和装载速度有关）
+int max_robot_capacity[BERTH_NUM];
+// TODO: 当前泊位对应区域分配到的机器人数量
+int cur_robot_capacity[BERTH_NUM];
+// TODO: 首次调度标记
+int first_assignment_tag[BERTH_NUM];
 
 // ===== header end =====

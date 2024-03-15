@@ -84,7 +84,16 @@ namespace rns {
         debug_robot("[ROBOT] set move path for robot %d\n", rid);
         int start_pos = pns::pos_encode(robot[rid].x, robot[rid].y);
         int end_pos = pns::pos_encode(robot[rid].mbx, robot[rid].mby);
-        bool planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
+        bool planning_res;
+        // TODO: 区分首次调度和后续调度
+        if (robot[rid].normal_assignment == 0) {
+            // 首次调度，使用全局 BFS 算法
+            planning_res = pns::path_planning_bfs(rid, start_pos, end_pos, false);
+            robot[rid].normal_assignment = 1;
+        } else {
+            // 后续调度，使用区域内 BFS 算法
+            planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
+        }
         if (!planning_res) {
             // ! Debug
             debug_robot("[ROBOT] path planning failed for robot %d\n", rid);
@@ -285,15 +294,50 @@ namespace rns {
                 if (q_goods[bid].empty()) break;
                 good = q_goods[bid].top().second;
             }
-            // 将当前货物分配给当前区域内空闲的机器人
+
             int rid = -1;
-            for (int i = 0; i < ROBOT_NUM; i++) {
-                if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] == bid) {
-                    rid = i;
-                    break;
+            // TODO: 区分首次调度和后续调度
+            if (first_assignment_tag[bid] == 0) {
+                // ! Debug
+                debug_robot("first assignment of area %d\n", bid);
+                // 首次调度，根据 max_robot_capacity 和 cur_robot_capacity 进行分配
+                if (cur_robot_capacity[bid] == max_robot_capacity[bid]) {
+                    debug_robot("area %d has reached the maximum robot capacity\n", bid);
+                    continue;  // 区域分配到的机器人数量达到上限
                 }
+                // 优先分配当前区域内的机器人
+                for (int i = 0; i < ROBOT_NUM; i++) {
+                    if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] == bid) {
+                        rid = i;
+                        break;
+                    }
+                }
+                if (rid == -1) {
+                    // 当前区域内没有空闲的机器人，从全局范围内选择一个空闲的机器人
+                    for (int i = 0; i < ROBOT_NUM; i++) {
+                        if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] != -1) {
+                            rid = i;
+                            break;
+                        }
+                    }
+                }
+                cur_robot_capacity[bid]++;
+                first_assignment_tag[bid] = 1;
+            } else {
+                // ! Debug
+                debug_robot("normal assignment of area %d\n", bid);
+                // 将当前货物分配给当前区域内空闲的机器人
+                for (int i = 0; i < ROBOT_NUM; i++) {
+                    if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] == bid) {
+                        rid = i;
+                        break;
+                    }
+                }
+                if (rid == -1) continue;  // 当前区域内没有空闲的机器人
             }
-            if (rid == -1) continue;  // 当前区域内没有空闲的机器人
+            // ! Debug
+            debug_robot("Assign robot %d to area %d\n", rid, bid);
+
             // 将货物分配给机器人
             // ! Debug
             // Assert(robot[rid].status != rns::ROBOT_IDLE, "Robot %d is in idle status!\n", rid);
