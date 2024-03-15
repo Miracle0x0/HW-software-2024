@@ -243,6 +243,46 @@ namespace pns {
     }
 
     /**
+     * @brief 从当前位置开始使用“下山"法规划返回泊位的路径
+     * 
+     * @param pos 
+     * @return true 
+     * @return false 
+     */
+    inline bool path_planning_downhill_pre(const int rid, const int pos) {
+        clear_robot(rid);
+
+        append_path(rid, pos);
+
+        int nxt_x = -1, nxt_y = -1, nxt_pos = -1;
+        int x = pos_decode_x(pos), y = pos_decode_y(pos);
+        int cur_pos = pos;
+        int cur_x = pos_decode_x(pos), cur_y = pos_decode_y(pos);
+        int cur_dis = dis[cur_x][cur_y];
+        int area_id = gds[cur_x][cur_y];
+
+        // ! Debug
+        debug_robot("[PRE DOWNHILL] start pre-downhill planning for robot %d\n", rid);
+        debug_robot("start at (%d, %d)\n", cur_x, cur_y);
+
+        // * 寻找周围与 (x, y) 位于同一分区且 dis 数值比当前位置少 1 的点
+        while (cur_dis != 0) {
+            for (int k = 0; k < 4; k++) {
+                nxt_x = x + magic_directions[k], nxt_y = y + magic_directions[k + 1];
+                nxt_pos = pos_encode(nxt_x, nxt_y);
+                if (!valid_pos(nxt_x, nxt_y) || gds[nxt_x][nxt_y] != area_id || dis[nxt_x][nxt_y] != cur_dis - 1) continue;
+                break;
+            }
+            append_path(rid, nxt_pos);
+            parent_of(rid, nxt_pos) = cur_pos;
+
+            x = nxt_x, y = nxt_y;
+            cur_dis--;
+        }
+        return true;
+    }
+
+    /**
      * @brief 回溯路径
      * 
      * @param rid 

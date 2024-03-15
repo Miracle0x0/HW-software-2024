@@ -96,6 +96,14 @@ char okk[100];
 
 // * 辅助函数定义
 
+/**
+ * @brief 物品价值函数，含义为单位时间（即距离）能够获取的价值
+ * 
+ * @param x 
+ * @param y 
+ * @param val 
+ * @return float 
+ */
 inline float cost_of_good(int x, int y, int val) {
     return ((float) val) / dis[x][y];
 }

@@ -123,6 +123,20 @@ namespace rns {
         return 0;
     }
 
+    inline int set_berth_path_pre(const int rid, const int pos) {
+        // ! Debug
+        debug_robot("[ROBOT] set berth path for robot %d\n", rid);
+
+        bool planning_res = pns::path_planning_downhill_pre(rid, pos);
+        if (!planning_res) {
+            // ! Debug
+            debug_robot("[ROBOT] path planning pre failed for robot %d\n", rid);
+            return -1;
+        }
+        pns::skip_first(rid);
+        return 0;
+    }
+
     /**
      * @brief 机器人 rid 的移动方向
      * 
@@ -228,7 +242,7 @@ namespace rns {
     }
 
     /**
-    * @brief 机器人执行移动指令
+    * @brief 机器人执行移动指令，返回移动后的位置编码
     * 
     * @param rid I
     * @return int 
@@ -242,7 +256,8 @@ namespace rns {
             robot[rid].wait = 0;
             // ! Debug
             debug_robot("[ROBOT] Robot %d is waiting at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
-            return 0;
+            // return 0;
+            return pns::pos_encode(robot[rid].x, robot[rid].y);
         }
 
         int nxt_pos = pns::step_once(rid);
@@ -263,7 +278,8 @@ namespace rns {
             robot_move(rid, (nxt_x > robot[rid].x) ? ROBOT_DIRECTIONS::DOWN : ROBOT_DIRECTIONS::UP);
         }
 
-        return 0;
+        // return 0;
+        return nxt_pos;
     }
 
     /**
@@ -273,7 +289,7 @@ namespace rns {
     * @return int 
     */
     inline int execute_robot_instructions(int frame) {
-        debug_robot("%05d F | execute_robot_instructions\n", frame);
+        debug_robot("========== %05d F | execute_robot_instructions | begin ==========\n", frame);
 
         // ! Debug
         for (int i = 0; i < ROBOT_NUM; i++) {
@@ -361,7 +377,7 @@ namespace rns {
         }
 
         // * 2. 碰撞检测和移动执行
-        // TODO: 冲突检测
+        // 冲突检测
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;  // 跳过处于恢复状态的机器人
             // ? 进行冲突检测
@@ -371,10 +387,16 @@ namespace rns {
                 debug_robot("[CRASH] Crash happened for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
             }
         }
+        // TODO: 消除放置和取货的延迟
+        vector<int> nxt_pos_of_robots(ROBOT_NUM, -1);
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;  // 跳过处于恢复状态的机器人
             // ? 执行移动指令
-            if (!pns::empty_path(rid)) { exec_move(rid); }
+            if (!pns::empty_path(rid)) {
+                nxt_pos_of_robots[rid] = exec_move(rid);
+            } else {
+                nxt_pos_of_robots[rid] = pns::pos_encode(robot[rid].x, robot[rid].y);
+            }
         }
 
         // * 3. 操作货物（放置或取货）
@@ -382,6 +404,7 @@ namespace rns {
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             // 跳过处于恢复状态的机器人
             if (robot[rid].status == rns::ROBOT_IDLE) continue;
+            // ? 放置
             // 如果有机器人到达泊位，则进行放置操作
             if (robot[rid].target == rns::T_BERTH && ch[robot[rid].x][robot[rid].y] == BERTH) {
                 // add goods to berth
@@ -391,7 +414,17 @@ namespace rns {
 
                 rns::robot_pull(rid);
                 robot[rid].target = rns::T_NONE;  // 放置后，重置目标
+            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH) {
+                // add goods to berth
+                int bid = query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid]));
+                berth[bid].value += robot[rid].val_of_good;
+                berth[bid].goods_value.push(robot[rid].val_of_good);
+
+                rns::robot_pull(rid);
+                robot[rid].target = rns::T_NONE;  // 放置后，重置目标
             }
+
+            // ? 取货
             // 如果有机器人到达目标物品处，则进行取货操作
             else if (robot[rid].target == rns::T_GOOD && robot[rid].x == robot[rid].mbx && robot[rid].y == robot[rid].mby) {
                 rns::robot_get(rid);
@@ -401,8 +434,19 @@ namespace rns {
                 // ! Debug
                 pns::backtrace_path(rid);
                 debug_robot("finish backtrace path for robot %d\n", rid);
+            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_GOOD && robot[rid].mbx == pns::pos_decode_x(nxt_pos_of_robots[rid]) && robot[rid].mby == pns::pos_decode_y(nxt_pos_of_robots[rid])) {
+                rns::robot_get(rid);
+                robot[rid].target = rns::T_BERTH;  // 取货后，设置目标为泊位
+
+                set_berth_path_pre(rid, nxt_pos_of_robots[rid]);  // * 设置运送货物到泊位的路径
+                // ! Debug
+                pns::backtrace_path(rid);
+                debug_robot("finish backtrace path for robot %d\n", rid);
             }
         }
+
+        // ! Debug
+        debug_robot("========== %05d F | execute_robot_instructions | end ==========\n", frame);
 
         return 0;
     }
