@@ -48,6 +48,7 @@ struct Berth {
     int transport_time;
     int loading_speed;
 
+    int tag = 0;             // 标记泊位是否可用 0: 不可用 1: 可用
     int value = 0;           // 泊位价值
     queue<int> goods_value;  // 泊位上的货物价值（取货按照时间排序）
 

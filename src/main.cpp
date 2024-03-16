@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define LOCAL_DEBUG
+// #define LOCAL_DEBUG
 
 #include "include/debug.h"
 #include "include/defines.h"
@@ -44,7 +44,10 @@ void show_global_dis() {
     }  // end of berth loop
 #endif
 }
-
+// 得到总的运输时间:来回以及卸货
+inline float get_hole_trans_time(int ind){
+    return 2.0 * berth[ind].transport_time + ship_capacity/(1.0 * berth[ind].loading_speed);
+}
 // 子图划分，采用 BFS
 void global_graph_partition() {
     // Debug("[INIT] global graph partition\n");
@@ -141,8 +144,12 @@ void global_graph_partition() {
                 }
                 if (min_beath != b) {
                     flag = 1;
+                    // some changes here
                     int min_beath_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
                     int b_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
+
+                    // int min_beath_new = get_hole_trans_time(min_beath) >= get_hole_trans_time(b) ? min_beath : b;
+                    // int b_new = get_hole_trans_time(min_beath) >= get_hole_trans_time(b) ? b : min_beath;
                     area_size[min_beath_new] += area_size[b_new];
                     area_size[b_new] = 0;
                     for (int i = 0; i < n; i++) {
@@ -173,6 +180,17 @@ void global_graph_partition() {
     }
 }
 
+// 标记可用的泊位
+void check_berth_tag(){
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            berth[gds[i][j]].tag = 1;
+        }
+    }
+    for(int i = 0; i < BERTH_NUM; i++){
+        Debug("berth %d tag %d\n", i, berth[i].tag);
+    }
+}
 void init_map() {
 
     memset(gds, -1, sizeof(gds));
@@ -204,7 +222,7 @@ void init_map() {
 
     // init graph
     global_graph_partition();
-
+    check_berth_tag();
     // * 设置能够调度的机器人数量
     int assignable_robot_num = ROBOT_NUM;
     // ! Debug
