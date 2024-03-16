@@ -45,8 +45,8 @@ void show_global_dis() {
 #endif
 }
 // 得到总的运输时间:来回以及卸货
-inline float get_hole_trans_time(int ind){
-    return 2.0 * berth[ind].transport_time + ship_capacity/(1.0 * berth[ind].loading_speed);
+inline float get_hole_trans_time(int ind) {
+    return 2.0 * berth[ind].transport_time + ship_capacity / (1.0 * berth[ind].loading_speed);
 }
 // 子图划分，采用 BFS
 void global_graph_partition() {
@@ -175,22 +175,22 @@ void global_graph_partition() {
     // ! Debug
     Debug("After merge:\n");
     for (int b = 0; b < BERTH_NUM; b++) {
-        all_area_size += area_size[b];
         Debug("area_size of %d is %d\n", b, area_size[b]);
     }
 }
 
 // 标记可用的泊位
-void check_berth_tag(){
+void check_berth_tag() {
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
             berth[gds[i][j]].tag = 1;
         }
     }
-    for(int i = 0; i < BERTH_NUM; i++){
+    for (int i = 0; i < BERTH_NUM; i++) {
         Debug("berth %d tag %d\n", i, berth[i].tag);
     }
 }
+
 void init_map() {
 
     memset(gds, -1, sizeof(gds));
