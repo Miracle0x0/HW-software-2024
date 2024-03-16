@@ -219,6 +219,8 @@ namespace pns {
         int cur_dis = dis[robot[rid].x][robot[rid].y];
         int area_id = gds[robot[rid].x][robot[rid].y];
 
+        robot[rid].target_area_id = area_id;
+
         // ! Debug
         debug_robot("[DOWNHILL] start downhill planning for robot %d\n", rid);
         debug_robot("start at (%d, %d)\n", x, y);
@@ -260,6 +262,8 @@ namespace pns {
         int cur_x = pos_decode_x(pos), cur_y = pos_decode_y(pos);
         int cur_dis = dis[cur_x][cur_y];
         int area_id = gds[cur_x][cur_y];
+
+        robot[rid].target_area_id = area_id;
 
         // ! Debug
         debug_robot("[PRE DOWNHILL] start pre-downhill planning for robot %d\n", rid);

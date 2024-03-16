@@ -160,13 +160,38 @@ namespace rns {
         }
     }
 
+    inline int crash_detection(const int rid) {
+        int cur_nxt_pos = pns::next_pos_of(rid);  // 当前机器人的下一步位置
+        int cur_pos = pns::pos_encode(robot[rid].x, robot[rid].y);
+        int cur_x = robot[rid].x, cur_y = robot[rid].y;
+
+        int nxt_pos;
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (i == rid) continue;
+            if (robot[i].status == rns::ROBOT_IDLE || robot[i].wait) {
+                nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
+            } else {
+                nxt_pos = pns::next_pos_of(i);
+                if (nxt_pos == -1)
+                    nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
+            }
+            if (cur_nxt_pos == nxt_pos || cur_nxt_pos == pns::pos_encode(robot[i].x, robot[i].y)) {
+                // ! Debug
+                // debug_robot("[CRASH] Crash detected for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
+                return CRASH_HAPPENED;
+            }
+        }
+
+        return CRASH_NONE;
+    }
+
     /**
-     * @brief 机器人 rid 的冲突检测
+     * @brief 机器人 rid 的冲突修正
      * 
      * @param rid 
      * @return int 
      */
-    inline int crash_detection(const int rid) {
+    inline int crash_fix(const int rid) {
         int cur_nxt_pos = pns::next_pos_of(rid);  // 当前机器人的下一步位置
         int cur_pos = pns::pos_encode(robot[rid].x, robot[rid].y);
         int cur_x = robot[rid].x, cur_y = robot[rid].y;
@@ -181,8 +206,8 @@ namespace rns {
         // * 2. id 小于自己的机器人的下一步位置
         for (int i = 0; i < rid; i++) {
             int nxt_pos;
-            if (robot[i].status == rns::ROBOT_IDLE) {
-                // 如果机器人处于恢复状态，则下一步位置就是当前位置
+            if (robot[i].status == rns::ROBOT_IDLE || robot[i].wait) {
+                // 如果机器人处于恢复状态或等待状态，则下一步位置就是当前位置
                 nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
             } else {
                 nxt_pos = pns::next_pos_of(i);
@@ -192,17 +217,13 @@ namespace rns {
                 if (nxt_pos == -1) {
                     nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
                 }
-                if (robot[i].wait) {
-                    // 如果机器人处于恢复状态，则下一步位置就是当前位置
-                    nxt_pos = pns::pos_encode(robot[i].x, robot[i].y);
-                }
             }
             invalid_pos_masking.insert(nxt_pos);
         }
         // * 3. id 大于自己的机器人的可能位置
         for (int i = rid + 1; i < ROBOT_NUM; i++) {
-            if (robot[i].status == rns::ROBOT_IDLE) {
-                // 如果机器人处于恢复状态，则下一步位置就是当前位置
+            if (robot[i].status == rns::ROBOT_IDLE || robot[i].wait) {
+                // 如果机器人处于恢复状态或等待状态，则下一步位置就是当前位置
                 invalid_pos_masking.insert(pns::pos_encode(robot[i].x, robot[i].y));
             } else {
                 // 否则，所有可能的位置都是不可走的
@@ -301,6 +322,7 @@ namespace rns {
         }
 
         // * 1. 分配货物
+        // ? 首先从每个分区的货物队列中取出货物，然后分配给机器人
         for (auto it = order_of_berth.begin(); it != order_of_berth.end(); it++) {
             int bid = it->second;
             if (q_goods[bid].empty()) continue;
@@ -312,8 +334,7 @@ namespace rns {
             }
 
             int rid = -1;
-            // TODO: 区分首次调度和后续调度
-            if (first_assignment_tag[bid] == 0) {
+            if (first_assignment_tag[bid] == 0) {  // * 首次调度，需要将机器人开到负责的区域再取货
                 // ! Debug
                 debug_robot("first assignment of area %d\n", bid);
                 // 首次调度，根据 max_robot_capacity 和 cur_robot_capacity 进行分配
@@ -339,7 +360,7 @@ namespace rns {
                 }
                 cur_robot_capacity[bid]++;
                 first_assignment_tag[bid] = 1;
-            } else {
+            } else {  // * 通用调度，机器人只负责区域内刷新的货物
                 // ! Debug
                 debug_robot("normal assignment of area %d\n", bid);
                 // 将当前货物分配给当前区域内空闲的机器人
@@ -375,13 +396,25 @@ namespace rns {
             pns::backtrace_path(rid);
             debug_robot("finish backtrace path for robot %d\n", rid);
         }
+        // ? 如果存在卸货后因未被分配货物而停留在泊位的机器人，令其离开泊位，为其它机器人腾出泊位
+        for (int rid = 0; rid < ROBOT_NUM; rid++) {
+            // TODO: ...
+        }
 
         // * 2. 碰撞检测和移动执行
+        set<int> crashed_robots;
+        for (int rid = 0; rid < ROBOT_NUM; rid++) {
+            if (robot[rid].status == rns::ROBOT_IDLE) continue;
+            if (crash_detection(rid) == CRASH_HAPPENED)
+                crashed_robots.insert(rid);
+        }
         // 冲突检测
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;  // 跳过处于恢复状态的机器人
+            // ! Debug
+            if (!crashed_robots.count(rid)) continue;
             // ? 进行冲突检测
-            int crash_res = crash_detection(rid);
+            int crash_res = crash_fix(rid);
             // ! Debug
             if (crash_res == rns::CRASH_HAPPENED) {
                 debug_robot("[CRASH] Crash happened for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);
@@ -406,7 +439,7 @@ namespace rns {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;
             // ? 放置
             // 如果有机器人到达泊位，则进行放置操作
-            if (robot[rid].target == rns::T_BERTH && ch[robot[rid].x][robot[rid].y] == BERTH) {
+            if (robot[rid].target == rns::T_BERTH && ch[robot[rid].x][robot[rid].y] == BERTH && gds[robot[rid].x][robot[rid].y] == robot[rid].target_area_id) {
                 // add goods to berth
                 int bid = query_berth_id(robot[rid].x, robot[rid].y);
                 berth[bid].value += robot[rid].val_of_good;
@@ -414,7 +447,7 @@ namespace rns {
 
                 rns::robot_pull(rid);
                 robot[rid].target = rns::T_NONE;  // 放置后，重置目标
-            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH) {
+            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH && gds[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == robot[rid].target_area_id) {
                 // add goods to berth
                 int bid = query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid]));
                 berth[bid].value += robot[rid].val_of_good;
