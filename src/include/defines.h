@@ -31,6 +31,7 @@ struct Robot {
     // * shape: 1x1
     int x, y, goods;
     int status;
+    int target_area_id;     // 目标区域 ID
     int normal_assignment;  // 是否为正常调度（区分首次调度）
     int val_of_good;        // 携带货物的价值
     int wait;               // 是否处于等待状态（即暂停一帧）
