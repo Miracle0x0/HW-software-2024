@@ -14,3 +14,7 @@ tmp/
 
 # backup folder
 bak/
+
+# tmp files
+.cache/
+*.json

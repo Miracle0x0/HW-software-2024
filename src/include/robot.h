@@ -1,7 +1,5 @@
 #pragma once
 #include <bits/stdc++.h>
-#include <bits/types/time_t.h>
-#include <random>
 using namespace std;
 
 #include "debug.h"
@@ -304,31 +302,33 @@ namespace rns {
     }
 
     /**
-    * @brief 执行机器人指令
-    * 
-    * @param frame 
-    * @return int 
-    */
-    inline int execute_robot_instructions(int frame) {
-        debug_robot("========== %05d F | execute_robot_instructions | begin ==========\n", frame);
+     * @brief 将货物分配给机器人
+     * 
+     * @param rid 
+     * @param good 
+     * @param bid 
+     */
+    inline void assign_good_to_robot(const int rid, const Good &good, const int bid) {
+        robot[rid].target = rns::T_GOOD;
+        robot[rid].mbx = good.x;
+        robot[rid].mby = good.y;
+        robot[rid].val_of_good = good.val;
+    }
 
-        // ! Debug
-        for (int i = 0; i < ROBOT_NUM; i++) {
-            if (robot[i].status == rns::ROBOT_IDLE) {
-                debug_robot("robot %d at (%d, %d) is in idle status\n", i, robot[i].x, robot[i].y);
-            } else {
-                debug_robot("robot %d at (%d, %d) is in working status\n", i, robot[i].x, robot[i].y);
-            }
-        }
-
-        // * 1. 分配货物
+    /**
+     * @brief 决定机器人和货物的分配关系
+     * 
+     * @param frame 
+     */
+    inline void goods_assignment(const int frame) {
         // ? 首先从每个分区的货物队列中取出货物，然后分配给机器人
-        for (auto it = order_of_berth.begin(); it != order_of_berth.end(); it++) {
-            int bid = it->second;
-            if (q_goods[bid].empty()) continue;
+        for (const auto &it: order_of_berth) {
+            int bid = it.second;
+            if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
             auto good = q_goods[bid].top().second;
             while (good.showup_frame + MAX_EXIST_FRAME < frame) {
                 q_goods[bid].pop();
+                debug_robot("[LOSS] good of val %d loss\n", good.val);
                 if (q_goods[bid].empty()) break;
                 good = q_goods[bid].top().second;
             }
@@ -373,29 +373,79 @@ namespace rns {
                 if (rid == -1) continue;  // 当前区域内没有空闲的机器人
             }
             // ! Debug
+            Assert(rid != -1, "No robot available for area %d\n", bid);
             debug_robot("Assign robot %d to area %d\n", rid, bid);
 
             // 将货物分配给机器人
             // ! Debug
-            // Assert(robot[rid].status != rns::ROBOT_IDLE, "Robot %d is in idle status!\n", rid);
-            if (robot[rid].status == rns::ROBOT_IDLE) {
-                debug_robot("Robot %d is in idle status!\n", rid);
-            }
+            Assert(robot[rid].status != rns::ROBOT_IDLE, "Robot %d is in idle status!\n", rid);
             // ! Debug
-            debug_robot("assign good (%d, %d) of val %d to robot %d\n", good.val, good.x, good.y, rid);
-            robot[rid].target = rns::T_GOOD;
-            robot[rid].mbx = good.x;
-            robot[rid].mby = good.y;
-            robot[rid].val_of_good = good.val;
-            q_goods[bid].pop();  // 从队列中移除货物
+            debug_robot("try to assign good (%d, %d) of val %d to robot %d\n", good.val, good.x, good.y, rid);
+            assign_good_to_robot(rid, good, bid);
 
             set_move_path(rid);  // * 设置移动路径
-            // ! Debug
-            debug_robot("finish set move path for robot %d\n", rid);
-            // ! Debug
-            pns::backtrace_path(rid);
-            debug_robot("finish backtrace path for robot %d\n", rid);
+
+            // TODO: 如果机器人到达货物位置的时刻货物已经消失，放弃这次分配
+            if (frame + pns::length_of_path(rid) >= good.showup_frame + MAX_EXIST_FRAME) {
+                int try_count = 0;
+                do {
+                    // ! Debug
+                    debug_robot("give up to assign good of val %d to robot %d\n", good.val, rid);
+                    pns::clear_robot(rid);
+                    robot[rid].target = T_NONE;
+                    robot[rid].val_of_good = 0;
+
+                    do {
+                        q_goods[bid].pop();
+                        debug_robot("[LOSS] good of val %d loss\n", good.val);
+                        if (q_goods[bid].empty()) break;
+                        good = q_goods[bid].top().second;
+                    } while (good.showup_frame + MAX_EXIST_FRAME < frame && !q_goods[bid].empty());
+
+                    assign_good_to_robot(rid, good, bid);
+                    set_move_path(rid);  // * 设置移动路径
+                } while ((frame + pns::length_of_path(rid) < good.showup_frame + MAX_EXIST_FRAME) && (try_count++ < 10) && (!q_goods[bid].empty()));
+
+                if (try_count >= 10) {
+                    debug_robot("give up to assign good of val %d to robot %d\n", good.val, rid);
+                    pns::clear_robot(rid);
+                    robot[rid].target = T_NONE;
+                    robot[rid].val_of_good = 0;
+                    if (!q_goods[bid].empty()) q_goods[bid].pop();
+                }
+
+            } else {
+                q_goods[bid].pop();  // * 分配成功，从队列中移除货物
+                // ! Debug
+                debug_robot("finish set move path for robot %d\n", rid);
+                // ! Debug
+                pns::backtrace_path(rid);
+                debug_robot("finish backtrace path for robot %d\n", rid);
+            }
         }
+    }
+
+    /**
+    * @brief 执行机器人指令
+    * 
+    * @param frame 
+    * @return int 
+    */
+    inline int execute_robot_instructions(int frame) {
+        debug_robot("========== %05d F | execute_robot_instructions | begin ==========\n", frame);
+
+        // ! Debug
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (robot[i].status == rns::ROBOT_IDLE) {
+                debug_robot("robot %d at (%d, %d) is in idle status\n", i, robot[i].x, robot[i].y);
+            } else {
+                debug_robot("robot %d at (%d, %d) is in working status\n", i, robot[i].x, robot[i].y);
+            }
+        }
+
+        // * 1. 分配货物
+        goods_assignment(frame);
+
         // ? 如果存在卸货后因未被分配货物而停留在泊位的机器人，令其离开泊位，为其它机器人腾出泊位
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
             // TODO: ...

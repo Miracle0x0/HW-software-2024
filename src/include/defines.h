@@ -34,6 +34,7 @@ struct Robot {
     int target_area_id;     // 目标区域 ID
     int normal_assignment;  // 是否为正常调度（区分首次调度）
     int val_of_good;        // 携带货物的价值
+    int moved_steps;        // 当前已经走过的路径长度
     int wait;               // 是否处于等待状态（即暂停一帧）
     int target;             // 0: 无目标 1: 货物 2: 泊位
     int mbx, mby;           // 目标坐标
