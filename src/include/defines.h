@@ -34,15 +34,16 @@ struct Robot {
     int target_area_id;     // 目标区域 ID
     int normal_assignment;  // 是否为正常调度（区分首次调度）
     int val_of_good;        // 携带货物的价值
+int moved_steps;        // 当前已经走过的路径长度
     int wait;               // 是否处于等待状态（即暂停一帧）
     int target;             // 0: 无目标 1: 货物 2: 泊位
     int mbx, mby;           // 目标坐标
+    int berth_id = -1;      // 该机器人当前的归属泊位 -1 表示无归属
     Robot() {}
     Robot(int startX, int startY) : x(startX), y(startY) {}
 } robot[ROBOT_NUM * 2];
 
-//--------change 增加参数 value 和 队列goods_value
-//--------todo: 机器人在泊位pull时候：1.增加泊位价值  2.货物价值加入队列
+
 struct Berth {
     // * shape: 4x4
     int x, y;
@@ -146,5 +147,6 @@ int max_robot_capacity[BERTH_NUM];
 int cur_robot_capacity[BERTH_NUM];
 // TODO: 首次调度标记
 int first_assignment_tag[BERTH_NUM];
-
+int sum_value = 0;
+int send_value = 0;
 // ===== header end =====

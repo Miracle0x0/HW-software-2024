@@ -81,6 +81,10 @@ namespace pns {
 
     inline void clear_path(const int rid) { ph(rid) = pt(rid); }
     inline bool empty_path(const int rid) { return ph(rid) == pt(rid); }
+inline int length_of_path(const int rid) {
+        if (ph(rid) <= pt(rid)) return pt(rid) - ph(rid);
+        return NN - ph(rid) + pt(rid);
+    }
     inline void append_path(const int rid, const int pos) {
         move_path[rid][pt(rid)] = pos;
         mod_inc(pt(rid));
