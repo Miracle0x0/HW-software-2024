@@ -1,7 +1,7 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-// #define LOCAL_DEBUG
+#define LOCAL_DEBUG
 
 #include "include/debug.h"
 #include "include/defines.h"
@@ -79,7 +79,7 @@ void global_graph_partition() {
                 if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
                 if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || global_dis[b][nxt_x][nxt_y] != -1) continue;
                 // 标记为已访问
-                if (ch[nxt_x][nxt_y] == BERTH)
+                if (ch[nxt_x][nxt_y] == BERTH && query_berth_id(nxt_x, nxt_y) == b)
                     global_dis[b][nxt_x][nxt_y] = global_dis[b][x][y];
                 else
                     global_dis[b][nxt_x][nxt_y] = global_dis[b][x][y] + 1;
@@ -286,7 +286,7 @@ int get_inputs(const int frame) {
         // TODO: 处理货物数据，抽象为函数
         // ? 处理货物数据
         float cost = cost_of_good(x, y, val);
-        if (cost < 0.01) continue;  // TODO: 阈值可调
+        if (cost < 0.4) continue;  // TODO: 阈值可调
         if (!rns::is_valid_good(x, y)) continue;
         auto new_good = Good(x, y, val, frame);
         auto area_id = gds[x][y];
