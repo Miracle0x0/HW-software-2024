@@ -31,9 +31,18 @@ clean: clean_code clean_replay
 	@echo "${GREEN}Cleanup images.${NC}"
 	@rm -rf image
 
+.PHONY: test
 test:
 	@if [ -f ${EXEC_NAME} ]; then \
 	    ./run_self.sh; \
+	else \
+		echo "${RED}Error: ${EXEC_NAME} does not exist.${NC}"; \
+	fi
+
+.PHONY: benchmark
+benchmark:
+	@if [ -f ${EXEC_NAME} ]; then \
+	    ./run_benchmark.sh; \
 	else \
 		echo "${RED}Error: ${EXEC_NAME} does not exist.${NC}"; \
 	fi
