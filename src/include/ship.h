@@ -65,6 +65,7 @@ inline int check_tag(int frame){
             berth[i].tag = 0;
         }
     }
+    return 0;
 }
 inline int check_ship(int frame) {
     if(frame % 100 == 99){
@@ -73,7 +74,8 @@ inline int check_ship(int frame) {
                 frame, i, berth[i].value, berth[i].goods_value.size());
     }
     for (int i = 0; i < SHIP_NUM; i++) {
-        debug_ship("frmae %5d| ship %d status %d pos %d goods_val %d goods_num %d\n", 
+        if (ship[i].pos != -1)
+            debug_ship("frmae %5d| ship %d status %d pos %d goods_val %d goods_num %d\n", 
                 frame, i, ship[i].status, ship[i].pos, berth[ship[i].pos].value, berth[ship[i].pos].goods_value.size());
         // status: 0 移动中
         // status: 2 等待中
