@@ -10,3 +10,6 @@ endif (!WIN32)
 
 AUX_SOURCE_DIRECTORY(. src)
 ADD_EXECUTABLE(main ${src})
+
+target_compile_options(main PRIVATE -fsanitize=address PRIVATE -O2)
+target_link_libraries(main PRIVATE asan)
