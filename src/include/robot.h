@@ -334,44 +334,18 @@ namespace rns {
             }
 
             int rid = -1;
-            if (first_assignment_tag[bid] == 0) {  // * 首次调度，需要将机器人开到负责的区域再取货
-                // ! Debug
-                debug_robot("first assignment of area %d\n", bid);
-                // 首次调度，根据 max_robot_capacity 和 cur_robot_capacity 进行分配
-                if (cur_robot_capacity[bid] == max_robot_capacity[bid]) {
-                    debug_robot("area %d has reached the maximum robot capacity\n", bid);
-                    continue;  // 区域分配到的机器人数量达到上限
+            // * 通用调度，机器人只负责区域内刷新的货物
+            // ! Debug
+            debug_robot("normal assignment of area %d\n", bid);
+            // 将当前货物分配给当前区域内空闲的机器人
+            for (int i = 0; i < ROBOT_NUM; i++) {
+                if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && robot[i].berth_id == bid) {
+                    rid = i;
+                    break;
                 }
-                // 优先分配当前区域内的机器人
-                for (int i = 0; i < ROBOT_NUM; i++) {
-                    if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] == bid) {
-                        rid = i;
-                        break;
-                    }
-                }
-                if (rid == -1) {
-                    // 当前区域内没有空闲的机器人，从全局范围内选择一个空闲的机器人
-                    for (int i = 0; i < ROBOT_NUM; i++) {
-                        if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] != -1) {
-                            rid = i;
-                            break;
-                        }
-                    }
-                }
-                cur_robot_capacity[bid]++;
-                first_assignment_tag[bid] = 1;
-            } else {  // * 通用调度，机器人只负责区域内刷新的货物
-                // ! Debug
-                debug_robot("normal assignment of area %d\n", bid);
-                // 将当前货物分配给当前区域内空闲的机器人
-                for (int i = 0; i < ROBOT_NUM; i++) {
-                    if (robot[i].status == rns::ROBOT_WORKING && robot[i].target == rns::T_NONE && gds[robot[i].x][robot[i].y] == bid) {
-                        rid = i;
-                        break;
-                    }
-                }
-                if (rid == -1) continue;  // 当前区域内没有空闲的机器人
             }
+            if (rid == -1) continue;  // 当前区域内没有空闲的机器人
+
             // ! Debug
             Assert(rid != -1, "No robot available for area %d\n", bid);
             debug_robot("Assign robot %d to area %d\n", rid, bid);
@@ -426,6 +400,113 @@ namespace rns {
     }
 
     /**
+    * @brief 分配具体机器人给泊位
+    * 
+    * @param  
+    * @return
+    */
+    inline void assign_robot() {
+        // 按照时间顺序优先给泊位分配机器人
+        for (auto it: order_of_berth) {
+            // 从可用的泊位中分配
+            // 循环分 - 找最近的机器人
+            int bid = it.second;
+            // 每个泊位分配机器人个数
+            for (int j = max_robot_capacity[bid]; j > 0; j--) {
+                int min_dis = 100000;
+                int min_robot_ind = -1;
+                for (int i = 0; i < ROBOT_NUM; i++) {
+                    if (robot[i].berth_id == -1) {  // 机器人未分配
+                        // 机器人到泊位的距离更小
+                        int dis = global_dis[bid][robot[i].x][robot[i].y];
+                        if (dis != -1 && dis < min_dis) {  // 可达 且 更近
+                            min_dis = dis;
+                            min_robot_ind = i;
+                        }
+                    }
+                }
+                if (min_robot_ind != -1) {
+                    robot[min_robot_ind].berth_id = bid;  // 设置机器人归属泊位
+                    cur_robot_capacity[bid]++;            // 当前泊位分配机器人数加一
+                }
+            }
+        }
+        // 有机器人没有分配到的情况
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (robot[i].berth_id == -1) {
+                // 遍历所有可用的泊位
+                // 找可达的最近泊位
+                int min_dis = 100000;
+                int min_ber_ind = -1;
+                for (auto it: order_of_berth) {  // 遍历可用泊位
+                    int bid = it.second;
+                    int dis = global_dis[bid][robot[i].x][robot[i].y];
+                    if (dis != -1 && dis < min_dis) {  // 更近的泊位
+                        min_dis = dis;
+                        min_ber_ind = bid;
+                    }
+                }
+                if (min_ber_ind != -1) {  // 找到可用泊位
+                    robot[i].berth_id = min_ber_ind;
+                    cur_robot_capacity[min_ber_ind]++;
+                }
+            }
+        }
+        // !Debug
+        // show assign information
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (robot[i].berth_id != -1) {
+                debug_robot("robot %d is assigned to berth %d\n", i, robot[i].berth_id);
+            }
+        }
+    }
+    /**
+    * @brief 时间不足时派机器人去其余泊位
+    * 
+    * @param  bid 该泊位id的泊位机器人可以借给其余泊位
+    * @return
+    */
+    inline void refesh_robot(int bid, int frame) {
+        // todo 必须是有船可到达的泊位
+        // 往可用的货物数量少的泊位发送机器人
+        // 注意机器人必须可达该泊位
+        vector<pair<float, int>> ber;  // pair: time, ind
+        for (int ind = 0; ind < BERTH_NUM; ind++) {
+            // 发送至可达的泊位
+            if (berth[ind].tag == 1 && global_dis[ind][berth[bid].x][berth[bid].y] != -1 && ind != bid) {
+                ber.emplace_back(make_pair(berth[ind].goods_value.size(), ind));
+            }
+        }
+        // 按照泊位货物数量排序
+        sort(ber.begin(), ber.end());
+
+
+        // todo: 船已装货物接近船容量的泊位不发机器人
+        for (auto it: ber) {
+            int new_bid = it.second;  // 机器人新泊位
+            for (int i = 0; i < ROBOT_NUM; i++) {
+                if (robot[i].berth_id == bid) {
+                    debug_robot("frame %5d| robot %d frin berth %d change to berth %d\n", frame, i, bid, new_bid);
+                    // 找到需要新分配的机器人
+                    robot[i].berth_id = new_bid;
+                    if (robot[i].target == rns::T_BERTH) {
+                        // 机器人正在前往泊位
+                        // 更改目标泊位
+                        robot[i].mbx = berth[new_bid].x;
+                        robot[i].mby = berth[new_bid].y;
+                    } else if (robot[i].target == rns::T_GOOD) {
+                        // 在往货物走
+                        // 直接摆烂等待下一次分配
+                        robot[i].target = rns::T_NONE;
+                        robot[i].mbx = berth[new_bid].x;
+                        robot[i].mby = berth[new_bid].y;
+                        robot[i].normal_assignment = 0;
+                    }
+                }
+            }
+        }
+    }
+    /**
     * @brief 执行机器人指令
     * 
     * @param frame 
@@ -442,7 +523,12 @@ namespace rns {
                 debug_robot("robot %d at (%d, %d) is in working status\n", i, robot[i].x, robot[i].y);
             }
         }
-
+        // 0-0
+        // 第一帧的时候分配一下机器人
+        // 避免机器人不会开不到对应泊位的情况
+        if (frame == 1) {
+            assign_robot();
+        }
         // * 1. 分配货物
         goods_assignment(frame);
 
@@ -501,6 +587,7 @@ namespace rns {
                 // add goods to berth
                 int bid = query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid]));
                 berth[bid].value += robot[rid].val_of_good;
+                sum_value += robot[rid].val_of_good;
                 berth[bid].goods_value.push(robot[rid].val_of_good);
 
                 rns::robot_pull(rid);

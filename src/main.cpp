@@ -44,10 +44,6 @@ void show_global_dis() {
     }  // end of berth loop
 #endif
 }
-// 得到总的运输时间:来回以及卸货
-inline float get_hole_trans_time(int ind) {
-    return 2.0 * berth[ind].transport_time + ship_capacity / (1.0 * berth[ind].loading_speed);
-}
 // 子图划分，采用 BFS
 void global_graph_partition() {
     // Debug("[INIT] global graph partition\n");
@@ -145,11 +141,11 @@ void global_graph_partition() {
                 if (min_beath != b) {
                     flag = 1;
                     // some changes here
-                    int min_beath_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
-                    int b_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
+                    // int min_beath_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? min_beath : b;
+                    // int b_new = berth[min_beath].loading_speed >= berth[b].loading_speed ? b : min_beath;
 
-                    // int min_beath_new = get_hole_trans_time(min_beath) >= get_hole_trans_time(b) ? min_beath : b;
-                    // int b_new = get_hole_trans_time(min_beath) >= get_hole_trans_time(b) ? b : min_beath;
+                    int min_beath_new = sns::get_hole_time(min_beath) >= sns::get_hole_time(b) ? min_beath : b;
+                    int b_new = sns::get_hole_time(min_beath) >= sns::get_hole_time(b) ? b : min_beath;
                     area_size[min_beath_new] += area_size[b_new];
                     area_size[b_new] = 0;
                     for (int i = 0; i < n; i++) {
@@ -191,38 +187,21 @@ void check_berth_tag() {
     }
 }
 
-void init_map() {
-
-    memset(gds, -1, sizeof(gds));
-    memset(dis, -1, sizeof(dis));
-    memset(global_dis, -1, sizeof(global_dis));
-    memset(area_size, 0, sizeof(area_size));
-    memset(neighbor, 0, sizeof(neighbor));
-    // * 加载地图 (200 x 200 grids)
-    for (int i = 0; i < n; i++) {
-        scanf("%s", ch[i]);
-    }
-    // * 加载泊位 (10 lines, 5 columns)
+// 分配泊位和机器人
+void assign_berth_and_robot(){
+    // * 泊位的总时间排序
     for (int i = 0; i < BERTH_NUM; i++) {
-        int id;
-        scanf("%d", &id);
-        scanf("%d %d %d %d", &berth[id].x, &berth[id].y, &berth[id].transport_time, &berth[id].loading_speed);
-        // ? 将泊位按照装载速度排序
-        order_of_berth.push_back({berth[id].loading_speed, id});
+        if(berth[i].tag)
+            order_of_berth.push_back({sns::get_hole_time(i), i});
     }
     sort(order_of_berth.begin(), order_of_berth.end(), greater<pair<int, int>>());
+
     // ! Debug
     Debug("berth order of loading_speed:\n");
     for (auto &i: order_of_berth)
         Debug("berth_id: %d | loading_speed: %d\n", i.second, i.first);
 
-    // * 轮船容积
-    scanf("%d", &ship_capacity);
-    scanf("%s", okk);
 
-    // init graph
-    global_graph_partition();
-    check_berth_tag();
     // * 设置能够调度的机器人数量
     int assignable_robot_num = ROBOT_NUM;
     // ! Debug
@@ -232,7 +211,7 @@ void init_map() {
     // TODO: 目前仅考虑区域的面积大小
     int remain_assignable_robot_num = assignable_robot_num;
     for (int i = 0; i < BERTH_NUM; i++) {
-        if (area_size[i] == 0) continue;
+        if (area_size[i] == 0 ) continue;
         max_robot_capacity[i] = int((float(area_size[i] * assignable_robot_num) / float(all_area_size)));
         remain_assignable_robot_num -= max_robot_capacity[i];
     }
@@ -258,6 +237,35 @@ void init_map() {
     for (int i = 0; i < BERTH_NUM; i++) {
         Debug("max_robot_capacity[%d] = %d\n", i, max_robot_capacity[i]);
     }
+}
+void init_map() {
+
+    memset(gds, -1, sizeof(gds));
+    memset(dis, -1, sizeof(dis));
+    memset(global_dis, -1, sizeof(global_dis));
+    memset(area_size, 0, sizeof(area_size));
+    memset(neighbor, 0, sizeof(neighbor));
+    // * 加载地图 (200 x 200 grids)
+    for (int i = 0; i < n; i++) {
+        scanf("%s", ch[i]);
+    }
+    // * 加载泊位 (10 lines, 5 columns)
+    for (int i = 0; i < BERTH_NUM; i++) {
+        int id;
+        scanf("%d", &id);
+        scanf("%d %d %d %d", &berth[id].x, &berth[id].y, &berth[id].transport_time, &berth[id].loading_speed);
+    }
+
+    // * 轮船容积
+    scanf("%d", &ship_capacity);
+    scanf("%s", okk);
+
+    // init graph
+    global_graph_partition();
+    // init berth tag
+    check_berth_tag();
+    // 分配机器人给泊位
+    assign_berth_and_robot();
 
     // init robot
     for (int i = 0; i < ROBOT_NUM; i++) {
@@ -265,8 +273,8 @@ void init_map() {
         robot[i].target = rns::T_NONE;
     }
 
-    // TODO: show gds or dis
-    show_gds();
+    // show gds or dis
+    // show_gds();
 
     // end of init
     printf("OK\n");
@@ -316,7 +324,7 @@ int process_inputs(int frame) {
     rns::execute_robot_instructions(frame);
 
     // process ship
-    check_ship(frame);
+    sns::check_ship(frame);
 
     return 0;
 }
@@ -355,6 +363,6 @@ int main() {
         // ! Debug
         Debug("===== Frame %05d end =====\n", frame);
     }
-
+    Debug("sum val %d send val %d\n", sum_value, send_value);
     return 0;
 }
