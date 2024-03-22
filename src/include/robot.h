@@ -325,12 +325,20 @@ namespace rns {
         for (const auto &it: order_of_berth) {
             int bid = it.second;
             if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
+            // ! Debug
+            debug_robot("consider area %d\n", bid);
             auto good = q_goods[bid].top().second;
             while (good.showup_frame + MAX_EXIST_FRAME < frame) {
                 q_goods[bid].pop();
                 debug_robot("[LOSS] good of val %d loss\n", good.val);
                 if (q_goods[bid].empty()) break;
                 good = q_goods[bid].top().second;
+            }
+
+            if (q_goods[bid].empty()) {
+                // ! debug
+                debug_robot("no goods in area %d\n", bid);
+                continue;
             }
 
             int rid = -1;
@@ -344,17 +352,20 @@ namespace rns {
                     break;
                 }
             }
-            if (rid == -1) continue;  // 当前区域内没有空闲的机器人
+            // ! Debug
+            if (rid == -1) {
+                debug_robot("No robot available for area %d\n", bid);  // 当前区域内没有空闲的机器人
+                continue;
+            }
 
             // ! Debug
-            Assert(rid != -1, "No robot available for area %d\n", bid);
             debug_robot("Assign robot %d to area %d\n", rid, bid);
 
             // 将货物分配给机器人
             // ! Debug
             Assert(robot[rid].status != rns::ROBOT_IDLE, "Robot %d is in idle status!\n", rid);
             // ! Debug
-            debug_robot("try to assign good (%d, %d) of val %d to robot %d\n", good.val, good.x, good.y, rid);
+            debug_robot("try to assign good (%d, %d) of val %d to robot %d\n", good.x, good.y, good.val, rid);
             assign_good_to_robot(rid, good, bid);
 
             set_move_path(rid);  // * 设置移动路径
@@ -364,10 +375,15 @@ namespace rns {
                 int try_count = 0;
                 do {
                     // ! Debug
-                    debug_robot("give up to assign good of val %d to robot %d\n", good.val, rid);
+                    debug_robot("give up to assign good (%d, %d) of val %d to robot %d\n", good.x, good.y, good.val, rid);
+                    try_count++;
+                    debug_robot("try count: %d\n", try_count);
+
                     pns::clear_robot(rid);
                     robot[rid].target = T_NONE;
                     robot[rid].val_of_good = 0;
+
+                    if (try_count >= 10) break;
 
                     do {
                         q_goods[bid].pop();
@@ -376,9 +392,11 @@ namespace rns {
                         good = q_goods[bid].top().second;
                     } while (good.showup_frame + MAX_EXIST_FRAME < frame && !q_goods[bid].empty());
 
+                    if (q_goods[bid].empty()) break;
+
                     assign_good_to_robot(rid, good, bid);
                     set_move_path(rid);  // * 设置移动路径
-                } while ((frame + pns::length_of_path(rid) < good.showup_frame + MAX_EXIST_FRAME) && (try_count++ < 10) && (!q_goods[bid].empty()));
+                } while (frame + pns::length_of_path(rid) >= good.showup_frame + MAX_EXIST_FRAME);
 
                 if (try_count >= 10) {
                     debug_robot("give up to assign good of val %d to robot %d\n", good.val, rid);
