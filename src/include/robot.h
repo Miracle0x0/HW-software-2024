@@ -314,7 +314,8 @@ namespace rns {
             if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
             // ! Debug
             debug_robot("consider area %d\n", bid);
-            auto good = q_goods[bid].top().second;
+            // auto good = q_goods[bid].top().second;
+            auto good = gns::fetch_good(bid);
             while (good.showup_frame + MAX_EXIST_FRAME < frame) {
                 gns::pop_good(bid);
                 debug_robot("[LOSS] good of val %d loss\n", good.val);
