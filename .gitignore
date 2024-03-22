@@ -18,3 +18,4 @@ bak/
 # tmp files
 .cache/
 *.json
+*.log

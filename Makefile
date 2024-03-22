@@ -4,6 +4,7 @@ GREEN=\033[0;32m
 NC=\033[0m # 没有颜色
 
 EXEC_NAME=tmp/build/main
+MAIN_NAME=tmp/main.cpp
 
 run: clean_code
 	@echo "${GREEN}Copy source files to tmp directory.${NC}"
@@ -45,4 +46,12 @@ benchmark:
 	    ./run_benchmark.sh; \
 	else \
 		echo "${RED}Error: ${EXEC_NAME} does not exist.${NC}"; \
+	fi
+
+.PHONY: submit
+submit:
+	@if [ -f ${MAIN_NAME} ]; then \
+		zip tmp/main.zip tmp/main.cpp && mv tmp/main.zip ${WIN_DOWNLOAD_PATH}; \
+	else \
+		echo "${RED}Error: ${MAIN_NAME} does not exist.${NC}"; \
 	fi
