@@ -25,6 +25,8 @@ sudo apt install gcc g++ cmake make clang-format
 - `make`: 编译 `main.cpp`。
 - `make test`: 调用判题器，日志存放在 `debug.log` 中。
 - `make clean`: 清除文件。
+- `make submit`: 打包为可提交的 zip 文件。需要 `WIN_DOWNLOAD_PATH` 环境变量（WSL 使用）。
+- `make benchmark`: 一键评测所有本地地图。
 
 ### 2. 分区可视化
 
