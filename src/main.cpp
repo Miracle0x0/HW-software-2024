@@ -152,7 +152,6 @@ void global_graph_partition() {
                         for (int j = 0; j < n; j++) {
                             if (gds[i][j] == b_new) {
                                 gds[i][j] = min_beath_new;
-                                dis[i][j] = global_dis[min_beath_new][i][j];
                             }
                         }
                     }
@@ -168,6 +167,54 @@ void global_graph_partition() {
             }
         }
     }
+
+    //重置dis，为重新进行bfs作准备
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            dis[i][j]=-1;
+        }
+    }
+    //重新bfs计算dis
+    for (int b = 0; b < BERTH_NUM; b++) {
+        // global_dis[b][berth[b].x][berth[b].y] = 0;
+        // ques[b].push(berth[b].x * n + berth[b].y);
+        // 矩形泊位
+        if(area_size[b]!=0){
+            for (int dx = 0; dx < BERTH_SIZE; dx++) {
+                for (int dy = 0; dy < BERTH_SIZE; dy++) {
+                    int nxt_x = berth[b].x + dx, nxt_y = berth[b].y + dy;
+                    // if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
+                    // if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || global_dis[b][nxt_x][nxt_y] != -1) continue;
+                    // gds[nxt_x][nxt_y.y] = b; // todo ? goods initial pos in berth
+                    dis[nxt_x][nxt_y] = 0;
+                    ques[b].push((nxt_x) *n + (nxt_y));
+                }
+            }
+            while (!ques[b].empty()) {
+                int cur = ques[b].front();
+                ques[b].pop();
+                int x = cur / n, y = cur % n;
+                for (int j = 0; j < 4; j++) {
+                    int nxt_x = x + magic_directions[j], nxt_y = y + magic_directions[j + 1];
+                    if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
+                    if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || dis[nxt_x][nxt_y]!=-1 || gds[nxt_x][nxt_y] != b) continue;
+                    // 标记为已访问
+                    if (ch[nxt_x][nxt_y] == BERTH && query_berth_id(nxt_x, nxt_y) == b)
+                        dis[nxt_x][nxt_y] = dis[x][y];
+                    else
+                        dis[nxt_x][nxt_y] = dis[x][y] + 1;
+                    ques[b].push(nxt_x * n + nxt_y);
+                }
+            }  // end of BFS search
+            // ! Debug
+            // Assert(ques[b].empty(), "BFS of berth %d error!\n", b);
+            if (ques[b].empty()) {
+                Debug("BFS of berth %d finished\n", b);
+            }
+        }
+    }  // end of berth loop
+    show_dis();
+    show_gds();
     // ! Debug
     Debug("After merge:\n");
     for (int b = 0; b < BERTH_NUM; b++) {
