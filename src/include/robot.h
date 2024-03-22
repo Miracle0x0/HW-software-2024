@@ -4,6 +4,7 @@ using namespace std;
 
 #include "debug.h"
 #include "defines.h"
+#include "good.h"
 #include "path.h"
 
 // ===== header begin =====
@@ -55,20 +56,6 @@ namespace rns {
         debug_robot("[PULL] robot %d pull val %d at (%d, %d)\n", id, robot[id].val_of_good, robot[id].x, robot[id].y);
         robot[id].val_of_good = 0;
         return 0;
-    }
-
-    /**
-    * @brief 判断货物是否合法
-    * 
-    * @param x 
-    * @param y 
-    * @return true 
-    * @return false 
-    */
-    inline bool is_valid_good(int x, int y) {
-        if (x < 0 || x >= n || y < 0 || y >= n) return false;
-        if (ch[x][y] == SEA || ch[x][y] == BORDER) return false;
-        return true;
     }
 
     /**
@@ -329,13 +316,16 @@ namespace rns {
             debug_robot("consider area %d\n", bid);
             auto good = q_goods[bid].top().second;
             while (good.showup_frame + MAX_EXIST_FRAME < frame) {
-                q_goods[bid].pop();
+                gns::pop_good(bid);
                 debug_robot("[LOSS] good of val %d loss\n", good.val);
-                if (q_goods[bid].empty()) break;
-                good = q_goods[bid].top().second;
+                // if (q_goods[bid].empty()) break;
+                if (!gns::remaining_good(bid)) break;
+                // good = q_goods[bid].top().second;
+                good = gns::fetch_good(bid);
             }
 
-            if (q_goods[bid].empty()) {
+            // if (q_goods[bid].empty()) {
+            if (!gns::remaining_good(bid)) {
                 // ! debug
                 debug_robot("no goods in area %d\n", bid);
                 continue;
@@ -386,13 +376,17 @@ namespace rns {
                     if (try_count >= 10) break;
 
                     do {
-                        q_goods[bid].pop();
+                        // q_goods[bid].pop();
+                        gns::pop_good(bid);
                         debug_robot("[LOSS] good of val %d loss\n", good.val);
-                        if (q_goods[bid].empty()) break;
-                        good = q_goods[bid].top().second;
+                        // if (q_goods[bid].empty()) break;
+                        if (!gns::remaining_good(bid)) break;
+                        // good = q_goods[bid].top().second;
+                        good = gns::fetch_good(bid);
                     } while (good.showup_frame + MAX_EXIST_FRAME < frame && !q_goods[bid].empty());
 
-                    if (q_goods[bid].empty()) break;
+                    // if (q_goods[bid].empty()) break;
+                    if (!gns::remaining_good(bid)) break;
 
                     assign_good_to_robot(rid, good, bid);
                     set_move_path(rid);  // * 设置移动路径
@@ -403,11 +397,13 @@ namespace rns {
                     pns::clear_robot(rid);
                     robot[rid].target = T_NONE;
                     robot[rid].val_of_good = 0;
-                    if (!q_goods[bid].empty()) q_goods[bid].pop();
+                    // if (!q_goods[bid].empty()) q_goods[bid].pop();
+                    if (gns::remaining_good(bid)) gns::pop_good(bid);
                 }
 
             } else {
-                q_goods[bid].pop();  // * 分配成功，从队列中移除货物
+                // q_goods[bid].pop();  // * 分配成功，从队列中移除货物
+                gns::pop_good(bid);
                 // ! Debug
                 debug_robot("finish set move path for robot %d\n", rid);
                 // ! Debug

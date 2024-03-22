@@ -1,10 +1,11 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-#define LOCAL_DEBUG
+// #define LOCAL_DEBUG
 
 #include "include/debug.h"
 #include "include/defines.h"
+#include "include/good.h"
 #include "include/path.h"
 #include "include/robot.h"
 #include "include/ship.h"
@@ -171,7 +172,7 @@ void global_graph_partition() {
     //重置dis，为重新进行bfs作准备
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < n; j++) {
-            dis[i][j]=-1;
+            dis[i][j] = -1;
         }
     }
     //重新bfs计算dis
@@ -179,7 +180,7 @@ void global_graph_partition() {
         // global_dis[b][berth[b].x][berth[b].y] = 0;
         // ques[b].push(berth[b].x * n + berth[b].y);
         // 矩形泊位
-        if(area_size[b]!=0){
+        if (area_size[b] != 0) {
             for (int dx = 0; dx < BERTH_SIZE; dx++) {
                 for (int dy = 0; dy < BERTH_SIZE; dy++) {
                     int nxt_x = berth[b].x + dx, nxt_y = berth[b].y + dy;
@@ -197,7 +198,7 @@ void global_graph_partition() {
                 for (int j = 0; j < 4; j++) {
                     int nxt_x = x + magic_directions[j], nxt_y = y + magic_directions[j + 1];
                     if (nxt_x < 0 || nxt_x >= n || nxt_y < 0 || nxt_y >= n) continue;
-                    if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || dis[nxt_x][nxt_y]!=-1 || gds[nxt_x][nxt_y] != b) continue;
+                    if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || dis[nxt_x][nxt_y] != -1 || gds[nxt_x][nxt_y] != b) continue;
                     // 标记为已访问
                     if (ch[nxt_x][nxt_y] == BERTH && query_berth_id(nxt_x, nxt_y) == b)
                         dis[nxt_x][nxt_y] = dis[x][y];
@@ -235,10 +236,10 @@ void check_berth_tag() {
 }
 
 // 分配泊位和机器人
-void assign_berth_and_robot(){
+void assign_berth_and_robot() {
     // * 泊位的总时间排序
     for (int i = 0; i < BERTH_NUM; i++) {
-        if(berth[i].tag)
+        if (berth[i].tag)
             order_of_berth.push_back({sns::get_hole_time(i), i});
     }
     sort(order_of_berth.begin(), order_of_berth.end(), greater<pair<int, int>>());
@@ -258,7 +259,7 @@ void assign_berth_and_robot(){
     // TODO: 目前仅考虑区域的面积大小
     int remain_assignable_robot_num = assignable_robot_num;
     for (int i = 0; i < BERTH_NUM; i++) {
-        if (area_size[i] == 0 ) continue;
+        if (area_size[i] == 0) continue;
         max_robot_capacity[i] = int((float(area_size[i] * assignable_robot_num) / float(all_area_size)));
         remain_assignable_robot_num -= max_robot_capacity[i];
     }
@@ -292,6 +293,7 @@ void init_map() {
     memset(global_dis, -1, sizeof(global_dis));
     memset(area_size, 0, sizeof(area_size));
     memset(neighbor, 0, sizeof(neighbor));
+
     // * 加载地图 (200 x 200 grids)
     for (int i = 0; i < n; i++) {
         scanf("%s", ch[i]);
@@ -338,19 +340,12 @@ int get_inputs(const int frame) {
     // * (横坐标，纵坐标，金额)
     for (int i = 0; i < k; i++) {
         scanf("%d %d %d", &x, &y, &val);
-        // TODO: 处理货物数据，抽象为函数
         // ? 处理货物数据
-        float cost = cost_of_good(x, y, val);
-        if (cost < 0.4) continue;  // TODO: 阈值可调
-        if (!rns::is_valid_good(x, y)) continue;
-        auto new_good = Good(x, y, val, frame);
-        auto area_id = gds[x][y];
-        q_goods[area_id].push({cost, new_good});
+        gns::append_good(frame, x, y, val);
     }
     // * 10 行数据，每一行表示一个机器人
     // * (是否携带物品，横坐标，纵坐标，状态)
     for (int i = 0; i < ROBOT_NUM; i++) {
-        int sts;
         scanf("%d %d %d %d", &robot[i].goods, &robot[i].x, &robot[i].y, &robot[i].status);
     }
     // * 5 行数据，每一行表示一艘船
