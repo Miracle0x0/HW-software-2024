@@ -15,7 +15,7 @@ const int FRAME_NUM = 15000;       // 总帧数（初赛为 15000）
 const int N = n + 10;              // 地图边界（防越界）
 const int MAX_K = 10;              // 每帧最多新增货物数量
 const int MAX_EXIST_FRAME = 1000;  // 货物最长存在时间
-
+const int pre_frame = 10000;       // 预热帧数 
 const int magic_directions[] = {-1, 0, 1, 0, -1};
 
 // ***** 地图说明符号 *****
@@ -96,7 +96,8 @@ int global_dis[BERTH_NUM][N][N];     // 距离矩阵，保存每个点到达各�
 int min_dis[N][N];                   // 最优距离矩阵，保存每个点到达各个泊位的最短距离
 int area_size[BERTH_NUM];            // 每个泊位的分区面积
 int neighbor[BERTH_NUM][BERTH_NUM];  // 泊位是否近邻
-
+queue<int> next_berth;               // 下一个要去的泊位
+int avaliable_berth = 0;             // 可用泊位数
 char okk[100];
 
 // * 辅助函数定义

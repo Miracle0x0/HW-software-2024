@@ -32,27 +32,26 @@ namespace sns {
         int bid = ship[id].pos;
         ship[id].status = sns::SHIP_WORKING;
         ship[id].pos = -1;
-
-        // todo 规划好最后的5条船的泊位
-        // 务必均匀规划
-
-        // 接下来时间内不会有船去的泊位
-        // 这艘船自己不去该泊位 且 没有 正在去该泊位的船 或者待会将要去该泊位的船
-        // 派机器人去其他区域
-        if ((FRAME_NUM - frame) < (berth[bid].transport_time * 2)) {  // 这艘船自己不去该泊位
-            // 没有 正在去该泊位的船
-            int flag = 0;
-            for (int i = 0; i < SHIP_NUM; i++) {
-                if (ship[i].status == sns::SHIP_TRANSFERRING && ship[i].pos == bid) {
-                    flag = 1;
-                    break;
-                }
-            }
-            if (flag) return 0;
-            // 刷新泊位机器人
+        debug_ship("frame %5d| avaliable %d\n",frame, avaliable_berth);
+        // go 最后5000帧只运输5个泊位
+        if (frame > pre_frame && avaliable_berth > 5) {
+            // 遍历所有机器人查看当前可用泊位数目
+            // 不再用这个泊位
+            avaliable_berth--;
             berth[bid].tag = 0;
             rns::refesh_robot(bid, frame);
+            debug_ship("frame %5d| avaliavle %d\n",frame, avaliable_berth);
         }
+        
+        // 打印所有泊位的货物价值
+        int tmp = 0;
+        for (int i = 0; i < BERTH_NUM; i++) {
+            tmp += berth[i].value;
+            debug_ship("frame %5d| berth %d goods_val %d goods_num %d avaliable %d\n",
+                        frame, i, berth[i].value, berth[i].goods_value.size(), berth[i].tag);
+        }
+        debug_ship("frame %5d| sum val %d\n",frame, tmp);
+            
         return 0;
     }
     // 查找最小可被选中的泊位时间
@@ -93,15 +92,14 @@ namespace sns {
     }
     // 执行船操作
     inline int check_ship(int frame) {
-        if (frame % 100 == 99) {
-            for (int i = 0; i < BERTH_NUM; i++)
-                debug_ship("frmae %5d| berth %d goods_val %d goods_num %d\n",
-                           frame, i, berth[i].value, berth[i].goods_value.size());
+        if(frame == 1){
+            // 初始安排next_berth
+            for(auto it: order_of_berth){
+                avaliable_berth++;
+            }
         }
+
         for (int i = 0; i < SHIP_NUM; i++) {
-            if (ship[i].pos != -1)
-                debug_ship("frmae %5d| ship %d status %d pos %d goods_val %d goods_num %d\n",
-                           frame, i, ship[i].status, ship[i].pos, berth[ship[i].pos].value, berth[ship[i].pos].goods_value.size());
             // status: 0 移动中
             // status: 2 等待中
             if (ship[i].status == sns::SHIP_TRANSFERRING || ship[i].status == sns::SHIP_WAITING) {
@@ -130,7 +128,7 @@ namespace sns {
                     // v1.1: 选择时间短的泊位且没有船的泊位
                     //       时间不足时选择时选择时间合适的泊位
                     // 根据时间 更新可选中泊位
-                    check_tag(frame);
+                    // check_tag(frame);
                     vector<pair<float, int>> ber;  // pair: time, ind
                     for (int ind = 0; ind < BERTH_NUM; ind++) {
                         if (berth[ind].tag == 1 && query_berth(ind) == 0) {
@@ -138,15 +136,22 @@ namespace sns {
                             //ber.emplace_back(make_pair(2.0 * berth[ind].transport_time + ship_capacity/(1.0 * berth[ind].loading_speed), ind) );
                             ber.emplace_back(make_pair(-berth[ind].value, ind));
                         }
+                        if(berth[ind].tag == 0 && query_berth(ind) == 0 && berth[ind].value > 500 && berth[ind].goods_value.size()>5){
+                            ber.emplace_back(make_pair(-berth[ind].value, ind));
+                        }
                     }
                     sort(ber.begin(), ber.end());
-
+                    // 输出一遍各个泊位价值
+                    // for (auto it:ber) {
+                    //     debug_ship("frame %5d| berth %lf value %d\n", frame, it.second, it.first);
+                    // }
                     if (ber.size() >= 1) {  // 有泊位可去
                         // 发送 ship 指令 前往泊位
                         // 重设 船的价值和剩余容量
                         ship[i].num = 0;
                         ship[i].value = 0;
                         sns::ship_move(i, ber[0].second, frame);
+                        
                     }
 
                 } else {
@@ -165,19 +170,37 @@ namespace sns {
                         debug_ship("frmae %5d| ship %d left by no capacity\n", frame, i);
                         sns::ship_go(i, frame);
                     }
-                    if (min_bid != -1 &&
-                        ((FRAME_NUM - frame) >
-                         (berth[bid].transport_time + 2 * berth[min_bid].transport_time + 20)) &&
-                        berth[bid].goods_value.empty()) {  // 时间充足且岸边无货 运送至虚拟点
-                        // todo: 衡量装货时间
-                        //        (ship_capacity-ship[i].num)/berth[i].loading_speed
-                        debug_ship("frmae %5d| ship %d left by no goods\n", frame, i);
-                        sns::ship_go(i, frame);
+                    if(frame > pre_frame){
+                        if(avaliable_berth > 5){
+                            if(berth[bid].goods_value.empty()){
+                                debug_ship("frmae %5d| ship %d left by no goods\n", frame, i);
+                                sns::ship_go(i, frame);
+                            }
+                        }
+                        else{
+                            // 把剩余的位置
+                            if ( get_hole_time(bid) + berth[bid].transport_time + 20 == FRAME_NUM - frame) {  
+                                // todo: 衡量装货时间
+                                //        (ship_capacity-ship[i].num)/berth[i].loading_speed
+                                debug_ship("frmae %5d| ship %d left by at end plan\n", frame, i);
+                                sns::ship_go(i, frame);
+                            }
+                             // 剩余时间等于送到泊位时间 运送至虚拟点
+                            if (FRAME_NUM - frame <= berth[bid].transport_time) { 
+                                debug_ship("frmae %5d| ship %d left by no time\n", frame, i);
+                                sns::ship_go(i, frame);
+                            }
+                        }
                     }
-                    if (FRAME_NUM - frame <= berth[bid].transport_time) {  // 剩余时间等于送到泊位时间 运送至虚拟点
-                        debug_ship("frmae %5d| ship %d left by no time\n", frame, i);
-                        sns::ship_go(i, frame);
+                    else{
+                        if(berth[bid].goods_value.empty()){
+                            debug_ship("frmae %5d| ship %d left by no goods\n", frame, i);
+                            sns::ship_go(i, frame);
+                        }
                     }
+
+                    
+
                     // 正常情况下装货
                     if (ship_capacity - ship[i].num > 0) {
                         // 装货
