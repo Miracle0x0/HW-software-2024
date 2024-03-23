@@ -695,7 +695,7 @@ namespace rns {
             if (robot[rid].status == rns::ROBOT_IDLE) continue;
             // ? 放置
             // 如果有机器人到达泊位，则进行放置操作
-            if (robot[rid].target == rns::T_BERTH && ch[robot[rid].x][robot[rid].y] == BERTH && gds[robot[rid].x][robot[rid].y] == robot[rid].target_area_id) {
+            if (robot[rid].target == rns::T_BERTH && ch[robot[rid].x][robot[rid].y] == BERTH && query_berth_id(robot[rid].x, robot[rid].y) == robot[rid].target_area_id) {
                 // add goods to berth
                 int bid = query_berth_id(robot[rid].x, robot[rid].y);
                 berth[bid].value += robot[rid].val_of_good;
@@ -704,7 +704,7 @@ namespace rns {
                 rns::robot_pull(rid);
                 robot[rid].target = rns::T_NONE;  // 放置后，重置目标
                 robot[rid].change_able = 1;
-            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH && gds[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == robot[rid].target_area_id) {
+            } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH && query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid])) == robot[rid].target_area_id) {
                 // add goods to berth
                 int bid = query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid]));
                 berth[bid].value += robot[rid].val_of_good;
