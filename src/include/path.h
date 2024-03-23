@@ -79,11 +79,10 @@ namespace pns {
 
     // ? 正常移动路径操作
 
-    inline void clear_path(const int rid) { ph(rid) = pt(rid); }
+    inline void clear_path(const int rid) { ph(rid) = pt(rid) = 0; }
     inline bool empty_path(const int rid) { return ph(rid) == pt(rid); }
     inline int length_of_path(const int rid) {
-        if (ph(rid) <= pt(rid)) return pt(rid) - ph(rid);
-        return NN - ph(rid) + pt(rid);
+        return (pt(rid) - ph(rid) + NN) % NN;
     }
     inline void append_path(const int rid, const int pos) {
         move_path[rid][pt(rid)] = pos;
@@ -96,7 +95,7 @@ namespace pns {
 
     // ? 冲突规避路径操作
 
-    inline void clear_avoid_path(const int rid) { ah(rid) = at(rid); }
+    inline void clear_avoid_path(const int rid) { ah(rid) = at(rid) = 0; }
     inline bool empty_avoid_path(const int rid) { return ah(rid) == at(rid); }
     inline void append_avoid_path(const int rid, const int pos) {
         avoid_path[rid][at(rid)] = pos;
@@ -203,6 +202,44 @@ namespace pns {
             }
         }
         return false;
+    }
+
+    /**
+     * @brief 使用 BFS 的路径规划（仅记录路径长度）
+     * 
+     * @param rid 
+     * @param start_pos 
+     * @param end_pos 
+     * @param self_area_only 
+     * @return int 
+     */
+    inline int path_length(const int start_pos, const int end_pos, const bool self_area_only = true) {
+        set<int> vis;               // * 访问标记
+        queue<pair<int, int>> que;  // * BFS 队列
+        int step = 0;
+        que.push({0, start_pos});
+        vis.insert(start_pos);
+
+        while (!que.empty()) {
+            int cur_step = que.front().first, cur_pos = que.front().second;
+            que.pop();
+            int x = pos_decode_x(cur_pos), y = pos_decode_y(cur_pos);
+            for (int k = 0; k < 4; k++) {
+                int nxt_x = x + magic_directions[k], nxt_y = y + magic_directions[k + 1];
+                int nxt_pos = pos_encode(nxt_x, nxt_y);
+                if (!valid_pos(nxt_x, nxt_y) || vis.count(nxt_pos)) continue;
+                if (self_area_only) {  // * 仅搜索当前分区的点位
+                    if (gds[nxt_x][nxt_y] != gds[x][y]) continue;
+                }
+
+                vis.insert(nxt_pos);
+                if (nxt_pos == end_pos) return cur_step + 1;
+
+                que.push({cur_step + 1, nxt_pos});
+            }
+        }
+
+        return -1;
     }
 
     /**

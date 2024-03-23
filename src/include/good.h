@@ -90,7 +90,7 @@ namespace gns {
      * @param bid 
      */
     inline void pop_good(const int bid) {
-#ifdef LODAL_DEBUG
+#ifdef LOCAL_DEBUG
         Assert(remaining_good(bid), "[GOOD] No remaining goods in area %d!\n", bid);
 #endif
         // q_goods[bid].pop();

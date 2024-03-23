@@ -38,7 +38,9 @@ struct Robot {
     int wait;               // 是否处于等待状态（即暂停一帧）
     int target;             // 0: 无目标 1: 货物 2: 泊位
     int mbx, mby;           // 目标坐标
+    int mb_showup_frame;    // 目标货物出现的帧数
     int berth_id = -1;      // 该机器人当前的归属泊位 -1 表示无归属
+    int change_able = 1;    // 是否可以改变目标
     Robot() {}
     Robot(int startX, int startY) : x(startX), y(startY) {}
 } robot[ROBOT_NUM * 2];

@@ -74,7 +74,7 @@ namespace rns {
         if (robot[rid].normal_assignment == 0) {
             // 首次调度，使用全局 BFS 算法
             planning_res = pns::path_planning_bfs(rid, start_pos, end_pos, false);
-            robot[rid].normal_assignment = 1;
+            robot[rid].normal_assignment++;
         } else {
             // 后续调度，使用区域内 BFS 算法
             planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
@@ -289,6 +289,34 @@ namespace rns {
     }
 
     /**
+     * @brief 是否变更目标货物
+     * 
+     * @return true 
+     * @return false 
+     */
+    inline bool change_target_good(const int rid, const Good &new_good) {
+        int v1 = robot[rid].val_of_good, v2 = new_good.val;
+        int d = robot[rid].moved_steps;
+        int d1_d = pns::length_of_path(rid);
+        int d2 = dis[new_good.x][new_good.y];
+
+        // if (v2 * (d1_d + d) * 2 <= v1 * (d + d2)) return false;  // * 剪枝
+        if (v2 * (2 * d1_d + d) <= v1 * (d + d2)) return false;  // * 剪枝
+        int man_dis = pns::distance(robot[rid].x, robot[rid].y, new_good.x, new_good.y);
+        // if (v2 * (d1_d + d) * 2 <= v1 * (d + man_dis + d2)) return false;  // * 剪枝
+        if (v2 * (2 * d1_d + d) <= v1 * (d + man_dis + d2)) return false;  // * 剪枝
+
+        int dd = pns::path_length(pns::pos_encode(robot[rid].x, robot[rid].y), pns::pos_encode(new_good.x, new_good.y));
+
+        // if (v2 * (d1_d + d) * 2 > v1 * (d + dd + d2)) return true;
+        if (v2 * (2 * d1_d + d) > v1 * (d + dd + d2)) {
+            robot[rid].change_able = 0;  // * 只允许更换一次目标
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * @brief 将货物分配给机器人
      * 
      * @param rid 
@@ -300,6 +328,7 @@ namespace rns {
         robot[rid].mbx = good.x;
         robot[rid].mby = good.y;
         robot[rid].val_of_good = good.val;
+        robot[rid].mb_showup_frame = good.showup_frame;
     }
 
     /**
@@ -311,7 +340,8 @@ namespace rns {
         // ? 首先从每个分区的货物队列中取出货物，然后分配给机器人
         for (const auto &it: order_of_berth) {
             int bid = it.second;
-            if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
+            // if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
+            if (area_size[bid] == 0 || !gns::remaining_good(bid)) continue;
             // ! Debug
             debug_robot("consider area %d\n", bid);
             // auto good = q_goods[bid].top().second;
@@ -410,6 +440,44 @@ namespace rns {
                 // ! Debug
                 pns::backtrace_path(rid);
                 debug_robot("finish backtrace path for robot %d\n", rid);
+            }
+        }
+
+        // TODO: 优化目标更换算法，使得更换目标后价值能够提升……
+        // TODO: 默认关闭
+        bool change_target = false;
+        if (change_target) {
+            for (int rid = 0; rid < ROBOT_NUM; rid++) {
+                if (robot[rid].status == rns::ROBOT_WORKING && robot[rid].target == rns::T_GOOD && robot[rid].normal_assignment != 0) {
+                    // * 对正在赶往货物所在位置的机器人，如果所在区域刷新了更高价值的货物，则变更目标
+                    int bid = robot[rid].berth_id;
+                    // if (area_size[bid] == 0 || q_goods[bid].empty()) continue;
+                    if (area_size[bid] == 0 || !gns::remaining_good(bid)) continue;
+                    auto good = gns::fetch_good(bid);
+                    while (good.showup_frame + MAX_EXIST_FRAME < frame) {
+                        gns::pop_good(bid);
+                        debug_robot("[LOSS] good of val %d loss\n", good.val);
+                        if (!gns::remaining_good(bid)) break;
+                        good = gns::fetch_good(bid);
+                    }
+                    if (!gns::remaining_good(bid)) continue;
+
+                    if (change_target_good(rid, good)) {  // * 更高价值的货物出现，变更目标
+                        // * 将原目标货物重新加入队列
+                        gns::append_good(robot[rid].mb_showup_frame, robot[rid].mbx, robot[rid].mby, robot[rid].val_of_good);
+
+                        pns::clear_robot(rid);
+                        robot[rid].moved_steps = 0;
+
+                        // ! Debug
+                        debug_robot("change target of robot %d from (%d, %d) to (%d, %d)\n", rid, robot[rid].mbx, robot[rid].mby, good.x, good.y);
+                        debug_robot("origin val: %d | new val: %d\n", robot[rid].val_of_good, good.val);
+                        assign_good_to_robot(rid, good, bid);
+
+                        set_move_path(rid);  // * 设置移动路径
+                        gns::pop_good(bid);  // * 分配成功，从队列中移除货物
+                    }
+                }
             }
         }
     }
@@ -598,6 +666,7 @@ namespace rns {
 
                 rns::robot_pull(rid);
                 robot[rid].target = rns::T_NONE;  // 放置后，重置目标
+                robot[rid].change_able = 1;
             } else if (nxt_pos_of_robots[rid] != -1 && robot[rid].target == rns::T_BERTH && ch[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == BERTH && gds[pns::pos_decode_x(nxt_pos_of_robots[rid])][pns::pos_decode_y(nxt_pos_of_robots[rid])] == robot[rid].target_area_id) {
                 // add goods to berth
                 int bid = query_berth_id(pns::pos_decode_x(nxt_pos_of_robots[rid]), pns::pos_decode_y(nxt_pos_of_robots[rid]));
@@ -607,6 +676,7 @@ namespace rns {
 
                 rns::robot_pull(rid);
                 robot[rid].target = rns::T_NONE;  // 放置后，重置目标
+                robot[rid].change_able = 1;
             }
 
             // ? 取货
