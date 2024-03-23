@@ -1,1 +1,1 @@
-./PreliminaryJudge -m "./maps/map-3.7.txt" "./tmp/build/main"
+./PreliminaryJudge -m "./maps/map2.txt" "./tmp/build/main"

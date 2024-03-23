@@ -308,22 +308,25 @@ namespace rns {
      * @return true 
      * @return false 
      */
-    inline bool change_target_good(const int rid, const Good &new_good) {
+    inline bool change_target_good(const int frame, const int rid, const Good &new_good) {
         int v1 = robot[rid].val_of_good, v2 = new_good.val;
         int d = robot[rid].moved_steps;
         int d1_d = pns::length_of_path(rid);
         int d2 = dis[new_good.x][new_good.y];
 
         // if (v2 * (d1_d + d) * 2 <= v1 * (d + d2)) return false;  // * 剪枝
-        if (v2 * (2 * d1_d + d) <= v1 * (d + d2)) return false;  // * 剪枝
+        // if (v2 * (2 * d1_d + d) <= v1 * (d + d2)) return false;  // * 剪枝
         int man_dis = pns::distance(robot[rid].x, robot[rid].y, new_good.x, new_good.y);
         // if (v2 * (d1_d + d) * 2 <= v1 * (d + man_dis + d2)) return false;  // * 剪枝
-        if (v2 * (2 * d1_d + d) <= v1 * (d + man_dis + d2)) return false;  // * 剪枝
+        // if (v2 * (2 * d1_d + d) <= v1 * (d + man_dis + d2)) return false;  // * 剪枝
 
-        int dd = pns::path_length(pns::pos_encode(robot[rid].x, robot[rid].y), pns::pos_encode(new_good.x, new_good.y));
+        int dd = pns::path_length(rid, pns::pos_encode(robot[rid].x, robot[rid].y), pns::pos_encode(new_good.x, new_good.y));
+
+        if (frame + dd >= new_good.showup_frame + MAX_EXIST_FRAME) return false;  // * 剪枝
 
         // if (v2 * (d1_d + d) * 2 > v1 * (d + dd + d2)) return true;
-        if (v2 * (2 * d1_d + d) > v1 * (d + dd + d2)) {
+        // if (v2 * (2 * d1_d + d) > v1 * (d + dd + d2)) {
+        if (v2 >= v1 && dd + d2 <= 2 * d1_d + d) {
             robot[rid].change_able = 0;  // * 只允许更换一次目标
             return true;
         }
@@ -476,7 +479,7 @@ namespace rns {
                     }
                     if (!gns::remaining_good(bid)) continue;
 
-                    if (change_target_good(rid, good)) {  // * 更高价值的货物出现，变更目标
+                    if (change_target_good(frame, rid, good)) {  // * 更高价值的货物出现，变更目标
                         // * 将原目标货物重新加入队列
                         gns::append_good(robot[rid].mb_showup_frame, robot[rid].mbx, robot[rid].mby, robot[rid].val_of_good);
 
@@ -538,7 +541,7 @@ namespace rns {
                 for (auto it: order_of_berth) {  // 遍历可用泊位
                     int bid = it.second;
                     int dis = global_dis[bid][robot[i].x][robot[i].y];
-                    if (dis != -1 && dis < min_dis) {  // 更近的泊位
+                    if (dis != -1 && dis < min_dis && cur_robot_capacity[bid] < max_robot_capacity[bid]) {  // 更近的泊位
                         min_dis = dis;
                         min_ber_ind = bid;
                     }
@@ -640,7 +643,7 @@ namespace rns {
                         int opposite_x = robot[rid].x - magic_directions[k], opposite_y = robot[rid].y - magic_directions[k + 1];
                         if (dis[opposite_x][opposite_y] == 1) {
                             pns::append_path(rid, pns::pos_encode(x, y));
-                            pns::append_path(rid, pns::pos_encode(robot[rid].x, robot[rid].y));
+                            // pns::append_path(rid, pns::pos_encode(robot[rid].x, robot[rid].y));
                             break;
                         }
                     }

@@ -15,8 +15,9 @@ namespace pns {
 
     // * 变量定义
 
-    int pos_ptr[ROBOT_NUM][NN];                        // 坐标指针数组，代替真实指针
-    bool vis[ROBOT_NUM][NN];                           // 访问标记数组
+    int pos_ptr[ROBOT_NUM][NN];  // 坐标指针数组，代替真实指针
+    bool vis[ROBOT_NUM][NN];     // 访问标记数组
+    bool tmp_vis[ROBOT_NUM][NN];
     int move_path[ROBOT_NUM][NN];                      // 机器人的移动路径
     int path_head[ROBOT_NUM], path_tail[ROBOT_NUM];    // 移动路径头尾指针
     int avoid_path[ROBOT_NUM][NN];                     // 冲突规避路径
@@ -67,6 +68,7 @@ namespace pns {
 
     inline void mark_vis(const int rid, const int pos) { vis[rid][pos] = true; }
     inline void clear_vis(const int rid) { memset(vis[rid], 0, sizeof(vis[rid])); }
+    inline void clear_tmp_vis(const int rid) { memset(tmp_vis[rid], 0, sizeof(tmp_vis[rid])); }
 
     // ? 队列操作
 
@@ -269,12 +271,13 @@ namespace pns {
      * @param self_area_only 
      * @return int 
      */
-    inline int path_length(const int start_pos, const int end_pos, const bool self_area_only = true) {
-        set<int> vis;               // * 访问标记
+    inline int path_length(const int rid, const int start_pos, const int end_pos, const bool self_area_only = true) {
+        clear_tmp_vis(rid);
+
         queue<pair<int, int>> que;  // * BFS 队列
         int step = 0;
         que.push({0, start_pos});
-        vis.insert(start_pos);
+        tmp_vis[rid][start_pos] = true;
 
         while (!que.empty()) {
             int cur_step = que.front().first, cur_pos = que.front().second;
@@ -283,12 +286,14 @@ namespace pns {
             for (int k = 0; k < 4; k++) {
                 int nxt_x = x + magic_directions[k], nxt_y = y + magic_directions[k + 1];
                 int nxt_pos = pos_encode(nxt_x, nxt_y);
-                if (!valid_pos(nxt_x, nxt_y) || vis.count(nxt_pos)) continue;
+                // if (!valid_pos(nxt_x, nxt_y) || vis.count(nxt_pos)) continue;
+                if (!valid_pos(nxt_x, nxt_y) || tmp_vis[nxt_pos]) continue;
                 if (self_area_only) {  // * 仅搜索当前分区的点位
                     if (gds[nxt_x][nxt_y] != gds[x][y]) continue;
                 }
 
-                vis.insert(nxt_pos);
+                // vis.insert(nxt_pos);
+                tmp_vis[rid][nxt_pos] = true;
                 if (nxt_pos == end_pos) return cur_step + 1;
 
                 que.push({cur_step + 1, nxt_pos});
@@ -314,7 +319,7 @@ namespace pns {
         int x = robot[rid].x, y = robot[rid].y;
         int cur_pos = pos_encode(robot[rid].x, robot[rid].y);
         int cur_dis = dis[robot[rid].x][robot[rid].y];
-        int area_id = gds[robot[rid].x][robot[rid].y];
+        int area_id = robot[rid].berth_id;
 
         robot[rid].target_area_id = area_id;
 
@@ -358,7 +363,7 @@ namespace pns {
         int cur_pos = pos;
         int cur_x = pos_decode_x(pos), cur_y = pos_decode_y(pos);
         int cur_dis = dis[cur_x][cur_y];
-        int area_id = gds[cur_x][cur_y];
+        int area_id = robot[rid].berth_id;
 
         robot[rid].target_area_id = area_id;
 

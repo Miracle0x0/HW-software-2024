@@ -48,6 +48,14 @@ benchmark:
 		echo "${RED}Error: ${EXEC_NAME} does not exist.${NC}"; \
 	fi
 
+.PHONY: real
+real:
+	@if [ -f ${EXEC_NAME} ]; then \
+	    ./run_real_bench.sh; \
+	else \
+		echo "${RED}Error: ${EXEC_NAME} does not exist.${NC}"; \
+	fi
+
 .PHONY: submit
 submit:
 	@if [ -f ${MAIN_NAME} ]; then \

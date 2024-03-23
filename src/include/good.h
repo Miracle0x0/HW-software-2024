@@ -60,11 +60,12 @@ namespace gns {
         if (!is_valid_good(x, y)) return false;
         float cost = cost_of_good(x, y, val);
         auto new_good = Good(x, y, val, frame);
+        Debug("val: %d | dis: %d | cost: %.2f\n", val, dis[x][y], cost);
         int area_id = gds[x][y];
-        if (cost >= 0.01) {  // TODO: 阈值可调
-            q_goods[area_id].push({cost, new_good});
+        if (cost >= 8.0) {  // TODO: 阈值可调
+            q_goods[area_id].push({val - 2 * dis[x][y], new_good});
         } else {  // * 加入备选队列
-            q_goods_bak[area_id].push({cost, new_good});
+            q_goods_bak[area_id].push({val - 2 * dis[x][y], new_good});
         }
         return true;
     }

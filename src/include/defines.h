@@ -15,7 +15,7 @@ const int FRAME_NUM = 15000;       // 总帧数（初赛为 15000）
 const int N = n + 10;              // 地图边界（防越界）
 const int MAX_K = 10;              // 每帧最多新增货物数量
 const int MAX_EXIST_FRAME = 1000;  // 货物最长存在时间
-const int pre_frame = 10000;       // 预热帧数 
+const int pre_frame = 12000;       // 预热帧数
 const int magic_directions[] = {-1, 0, 1, 0, -1};
 
 // ***** 地图说明符号 *****
@@ -24,6 +24,8 @@ const char SEA = '*';     // 海洋
 const char BORDER = '#';  // 障碍
 const char ROBOT = 'A';   // 机器人
 const char BERTH = 'B';   // 泊位
+
+extern int dis[N][N];
 
 // * 结构体定义
 
@@ -80,7 +82,10 @@ struct Good {
     Good(int x, int y, int val, int showup_frame) : x(x), y(y), val(val), showup_frame(showup_frame) {}
 
     bool operator<(const Good &g) const {
-        if (val == g.val) return showup_frame > g.showup_frame;
+        if (val == g.val) {
+            if (dis[x][y] == dis[g.x][g.y]) return showup_frame > g.showup_frame;
+            return dis[x][y] > dis[g.x][g.y];
+        }
         return val < g.val;
     }
 } good[MAX_K * MAX_EXIST_FRAME];

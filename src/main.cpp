@@ -63,7 +63,7 @@ void global_graph_partition() {
                 // if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || global_dis[b][nxt_x][nxt_y] != -1) continue;
                 // gds[nxt_x][nxt_y.y] = b; // todo ? goods initial pos in berth
                 global_dis[b][nxt_x][nxt_y] = 0;
-                ques[b].push((nxt_x) *n + (nxt_y));
+                ques[b].push(pns::pos_encode(nxt_x, nxt_y));
             }
         }
 
@@ -80,7 +80,7 @@ void global_graph_partition() {
                     global_dis[b][nxt_x][nxt_y] = global_dis[b][x][y];
                 else
                     global_dis[b][nxt_x][nxt_y] = global_dis[b][x][y] + 1;
-                ques[b].push(nxt_x * n + nxt_y);
+                ques[b].push(pns::pos_encode(nxt_x, nxt_y));
             }
         }  // end of BFS search
         // ! Debug
@@ -188,7 +188,7 @@ void global_graph_partition() {
                     // if (ch[nxt_x][nxt_y] == SEA || ch[nxt_x][nxt_y] == BORDER || global_dis[b][nxt_x][nxt_y] != -1) continue;
                     // gds[nxt_x][nxt_y.y] = b; // todo ? goods initial pos in berth
                     dis[nxt_x][nxt_y] = 0;
-                    ques[b].push((nxt_x) *n + (nxt_y));
+                    ques[b].push(pns::pos_encode(nxt_x, nxt_y));
                 }
             }
             while (!ques[b].empty()) {
@@ -204,7 +204,7 @@ void global_graph_partition() {
                         dis[nxt_x][nxt_y] = dis[x][y];
                     else
                         dis[nxt_x][nxt_y] = dis[x][y] + 1;
-                    ques[b].push(nxt_x * n + nxt_y);
+                    ques[b].push(pns::pos_encode(nxt_x, nxt_y));
                 }
             }  // end of BFS search
             // ! Debug
@@ -242,7 +242,8 @@ void assign_berth_and_robot() {
         if (berth[i].tag)
             order_of_berth.push_back({sns::get_hole_time(i), i});
     }
-    sort(order_of_berth.begin(), order_of_berth.end(), greater<pair<int, int>>());
+    // sort(order_of_berth.begin(), order_of_berth.end(), greater<pair<int, int>>());
+    sort(order_of_berth.begin(), order_of_berth.end());
 
     // ! Debug
     Debug("berth order of loading_speed:\n");
