@@ -73,11 +73,21 @@ namespace rns {
         // TODO: 区分首次调度和后续调度
         if (robot[rid].normal_assignment == 0) {
             // 首次调度，使用全局 BFS 算法
-            planning_res = pns::path_planning_bfs(rid, start_pos, end_pos, false);
+            planning_res = pns::path_planning_bfs_strict(rid, start_pos, end_pos, false);
+            if (!planning_res) {
+                // ! Debug
+                debug_robot("[ROBOT] strict path planning failed for robot %d\n", rid);
+                planning_res = pns::path_planning_bfs(rid, start_pos, end_pos, false);
+            }
             robot[rid].normal_assignment++;
         } else {
             // 后续调度，使用区域内 BFS 算法
-            planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
+            planning_res = pns::path_planning_bfs_strict(rid, start_pos, end_pos);
+            if (!planning_res) {
+                // ! Debug
+                debug_robot("[ROBOT] strict path planning failed for robot %d\n", rid);
+                planning_res = pns::path_planning_bfs(rid, start_pos, end_pos);
+            }
         }
         if (!planning_res) {
             // ! Debug
@@ -176,7 +186,7 @@ namespace rns {
      * @param rid 
      * @return int 
      */
-    inline int crash_fix(const int rid) {
+    inline int crash_fix(const int rid, const vector<int> &crash_fix_order, const int cur_i) {
         int cur_nxt_pos = pns::next_pos_of(rid);  // 当前机器人的下一步位置
         int cur_pos = pns::pos_encode(robot[rid].x, robot[rid].y);
         int cur_x = robot[rid].x, cur_y = robot[rid].y;
@@ -189,7 +199,9 @@ namespace rns {
             if (!pns::valid_pos(x, y)) invalid_pos_masking.insert(pns::pos_encode(x, y));
         }
         // * 2. id 小于自己的机器人的下一步位置
-        for (int i = 0; i < rid; i++) {
+        // for (int i = 0; i < rid; i++) {
+        for (int j = 0; j < cur_i; j++) {
+            int i = crash_fix_order[j];
             int nxt_pos;
             if (robot[i].status == rns::ROBOT_IDLE || robot[i].wait) {
                 // 如果机器人处于恢复状态或等待状态，则下一步位置就是当前位置
@@ -206,7 +218,9 @@ namespace rns {
             invalid_pos_masking.insert(nxt_pos);
         }
         // * 3. id 大于自己的机器人的可能位置
-        for (int i = rid + 1; i < ROBOT_NUM; i++) {
+        // for (int i = rid + 1; i < ROBOT_NUM; i++) {
+        for (int j = cur_i + 1; j < ROBOT_NUM; j++) {
+            int i = crash_fix_order[j];
             if (robot[i].status == rns::ROBOT_IDLE || robot[i].wait) {
                 // 如果机器人处于恢复状态或等待状态，则下一步位置就是当前位置
                 invalid_pos_masking.insert(pns::pos_encode(robot[i].x, robot[i].y));
@@ -617,7 +631,21 @@ namespace rns {
 
         // ? 如果存在卸货后因未被分配货物而停留在泊位的机器人，令其离开泊位，为其它机器人腾出泊位
         for (int rid = 0; rid < ROBOT_NUM; rid++) {
-            // TODO: ...
+            if (robot[rid].target == T_NONE && robot[rid].status == rns::ROBOT_WORKING && dis[robot[rid].x][robot[rid].y] == 0 && pns::empty_path(rid) && pns::empty_avoid_path(rid)) {
+                // ! Debug
+                debug_robot("robot %d is leaving berth %d\n", rid, robot[rid].berth_id);
+                for (int k = 0; k < 4; k++) {
+                    int x = robot[rid].x + magic_directions[k], y = robot[rid].y + magic_directions[k + 1];
+                    if (pns::valid_pos(x, y) && dis[x][y] == 0) {
+                        int opposite_x = robot[rid].x - magic_directions[k], opposite_y = robot[rid].y - magic_directions[k + 1];
+                        if (dis[opposite_x][opposite_y] == 1) {
+                            pns::append_path(rid, pns::pos_encode(x, y));
+                            pns::append_path(rid, pns::pos_encode(robot[rid].x, robot[rid].y));
+                            break;
+                        }
+                    }
+                }
+            }
         }
 
         // * 2. 碰撞检测和移动执行
@@ -627,13 +655,19 @@ namespace rns {
             if (crash_detection(rid) == CRASH_HAPPENED)
                 crashed_robots.insert(rid);
         }
+
+        vector<int> crash_fix_order = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+        random_shuffle(crash_fix_order.begin(), crash_fix_order.end());
+
         // 冲突检测
-        for (int rid = 0; rid < ROBOT_NUM; rid++) {
+        // for (int rid = 0; rid < ROBOT_NUM; rid++) {
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            int rid = crash_fix_order[i];
             if (robot[rid].status == rns::ROBOT_IDLE) continue;  // 跳过处于恢复状态的机器人
             // ! Debug
             if (!crashed_robots.count(rid)) continue;
             // ? 进行冲突检测
-            int crash_res = crash_fix(rid);
+            int crash_res = crash_fix(rid, crash_fix_order, i);
             // ! Debug
             if (crash_res == rns::CRASH_HAPPENED) {
                 debug_robot("[CRASH] Crash happened for robot %d at (%d, %d)\n", rid, robot[rid].x, robot[rid].y);

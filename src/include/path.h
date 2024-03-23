@@ -43,6 +43,8 @@ namespace pns {
 
     // * 函数定义
 
+    inline set<int> backtrace_path_set(const int rid);
+
     // ? 距离函数
 
     inline int distance(const int x1, const int y1, const int x2, const int y2) {
@@ -186,6 +188,60 @@ namespace pns {
                 if (self_area_only) {
                     // * 仅搜索当前分区的点位
                     if (gds[nxt_x][nxt_y] != gds[x][y]) continue;
+                }
+
+                mark_vis(rid, nxt_pos);
+                parent_of(rid, nxt_pos) = cur;
+
+                if (nxt_pos == end_pos) {
+                    while (nxt_pos != -1) {
+                        insert_path(rid, nxt_pos);
+                        nxt_pos = parent_of(rid, nxt_pos);
+                    }
+                    return true;
+                }
+                push_que(rid, nxt_pos);
+            }
+        }
+        return false;
+    }
+
+    inline bool path_planning_bfs_strict(const int rid, const int start_pos, const int end_pos, const bool self_area_only = true) {
+        clear_robot(rid);
+
+        push_que(rid, start_pos);
+        mark_vis(rid, start_pos);
+
+        int max_conflict_cnts = 10;  // TODO: 阈值可调
+        int cur_conflict_cnts = 0;
+
+        set<int> valid_pos_set;
+        for (int i = 0; i < ROBOT_NUM; i++) {
+            if (i == rid) continue;
+            if (robot[i].berth_id == robot[rid].berth_id && !empty_path(i)) {
+                auto path_set = backtrace_path_set(i);
+                valid_pos_set.insert(path_set.begin(), path_set.end());
+            }
+        }
+
+        while (!empty_que(rid)) {
+            int cur = front_que(rid);
+            pop_que(rid);
+            int x = pos_decode_x(cur), y = pos_decode_y(cur);
+            for (int k = 0; k < 4; k++) {
+                int nxt_x = x + magic_directions[k], nxt_y = y + magic_directions[k + 1];
+                int nxt_pos = pos_encode(nxt_x, nxt_y);
+                if (!valid_pos(nxt_x, nxt_y) || vis[rid][nxt_pos]) continue;
+
+                if (self_area_only) {
+                    // * 仅搜索当前分区的点位
+                    if (gds[nxt_x][nxt_y] != gds[x][y]) continue;
+                }
+
+                // ? 检查是否与其他机器人路径冲突
+                if (valid_pos_set.count(nxt_pos)) {
+                    cur_conflict_cnts++;
+                    if (cur_conflict_cnts == max_conflict_cnts) return false;
                 }
 
                 mark_vis(rid, nxt_pos);
@@ -358,6 +414,13 @@ namespace pns {
             else
                 debug_robot("(%d, %d)\n", pos_x, pos_y);
         }
+    }
+
+    inline set<int> backtrace_path_set(const int rid) {
+        set<int> path_set;
+        for (int i = ph(rid); i != pt(rid); mod_inc(i))
+            path_set.insert(move_path[rid][i]);
+        return path_set;
     }
 
 }  // namespace pns
